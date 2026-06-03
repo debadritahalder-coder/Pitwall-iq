@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import ConstructorCard from "../components/ConstructorCard";
 import ErrorFallback from "../components/ErrorFallback";
 import HistoryMomentCard from "../components/HistoryMomentCard";
+import HistoryVaultDetailPanel from "../components/HistoryVaultDetailPanel";
 import InsightCard from "../components/InsightCard";
 import LoadingState from "../components/LoadingState";
 import StatCard from "../components/StatCard";
@@ -16,6 +17,13 @@ export default function Dashboard() {
   const [constructors, setConstructors] = useState<ApiResponse<ConstructorStanding[]> | null>(null);
   const [latestResults, setLatestResults] = useState<ApiResponse<RaceResult[]> | null>(null);
   const [showLocalTime, setShowLocalTime] = useState(true);
+  
+  const [selectedMomentId, setSelectedMomentId] = useState<string | null>(null);
+  const detailPanelRef = useRef<HTMLElement>(null);
+
+  const selectedMoment = useMemo(() => {
+    return historyMoments.find((m) => m.id === selectedMomentId);
+  }, [selectedMomentId]);
 
   useEffect(() => {
     void Promise.all([
@@ -191,14 +199,45 @@ export default function Dashboard() {
       </section>
 
       <section>
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-racing">Archive</p>
-        <h2 className="mt-3 text-3xl font-black text-white">F1 History Vault</h2>
-        <p className="mt-2 max-w-2xl text-slate-400">Iconic moments every F1 fan eventually revisits.</p>
-        <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="flex items-end justify-between mb-8">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-racing">Archive</p>
+            <h2 className="mt-3 text-3xl font-black text-white">F1 History Vault</h2>
+            <p className="mt-2 max-w-2xl text-slate-400">Iconic moments every F1 fan eventually revisits.</p>
+          </div>
+        </div>
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           {historyMoments.map((moment) => (
-            <HistoryMomentCard key={moment.title} moment={moment} />
+            <HistoryMomentCard 
+              key={moment.id} 
+              moment={moment} 
+              isSelected={selectedMomentId === moment.id}
+              onClick={() => {
+                if (selectedMomentId === moment.id) {
+                  setSelectedMomentId(null);
+                } else {
+                  setSelectedMomentId(moment.id);
+                  // Allow state to update then scroll
+                  setTimeout(() => {
+                    detailPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 50);
+                }
+              }}
+            />
           ))}
         </div>
+        
+        {/* Detail Panel */}
+        {selectedMoment && (
+          <HistoryVaultDetailPanel 
+            ref={detailPanelRef}
+            moment={selectedMoment} 
+            onClose={() => {
+              setSelectedMomentId(null);
+              // Optional: scroll back to the grid slightly
+            }} 
+          />
+        )}
       </section>
     </div>
   );

@@ -45,11 +45,25 @@ export type RaceResult = {
 };
 
 export type HistoryMoment = {
+  id: string;
   title: string;
+  year: string;
   description: string;
   tag: string;
   image?: string;
   slug?: string;
+  detailImage?: string;
+  longSummary?: string;
+  whyItMattered?: string;
+  keyFacts?: {
+    circuit?: string;
+    winner?: string;
+    constructorTeam?: string;
+    championshipImpact?: string;
+    definingMoment?: string;
+  };
+  quoteOrPressReaction?: string;
+  sources?: { name: string; url: string }[];
 };
 
 export type GlossaryTerm = {
