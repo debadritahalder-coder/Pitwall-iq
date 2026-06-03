@@ -72,20 +72,54 @@ export type GlossaryTerm = {
 };
 
 export type StrategyInput = {
+  circuit: string;
   driverName: string;
   startingPosition: number;
-  startingTyre: "Soft" | "Medium" | "Hard";
+  startingTyre: "Soft" | "Medium" | "Hard" | "Intermediate" | "Wet";
   weather: "Dry" | "Mixed" | "Wet";
   safetyCarChance: "Low" | "Medium" | "High";
   pitLap: number;
+  aggressionLevel: "Conservative" | "Balanced" | "Aggressive";
+  trackPositionPriority: "Low" | "Medium" | "High";
+};
+
+export type StrategyOption = {
+  name: string;
+  tyrePlan: string;
+  pitWindow: string;
+  riskLevel: string;
+  upside: string;
+  downside: string;
 };
 
 export type StrategyResult = {
-  recommendedStrategy: string;
-  pitWindow: string;
-  riskScore: number;
-  expectedFinishRange: string;
-  explanation: string;
+  recommendedStrategy: {
+    plan: string;
+    pitWindow: string;
+    riskLevel: string;
+    projectedOutcome: string;
+  };
+  pitwallVerdict: string;
+  strategyOptions: StrategyOption[];
+  stintTimeline: { tyre: string; startLap: number; endLap: number; type: "stint" | "pit" }[];
+  riskBreakdown: {
+    tyreRisk: number;
+    trafficRisk: number;
+    safetyCarUpside: number;
+    weatherRisk: number;
+    undercutPotential: number;
+    trackPositionRisk: number;
+  };
+  pitWindowAdvisor: {
+    idealWindow: string;
+    earlyStopRisk: string;
+    lateStopRisk: string;
+  };
+  safetyCarResponsePlan: {
+    early: string;
+    mid: string;
+    late: string;
+  };
 };
 
 export type ApiResponse<T> = {
