@@ -138,6 +138,7 @@ export async function getLatestRaceResults(): Promise<ApiResponse<RaceResult[]>>
         RaceTable: {
           Races: Array<{
             raceName: string;
+            round: string;
             Results: Array<{
               position: string;
               grid: string;
@@ -159,9 +160,29 @@ export async function getLatestRaceResults(): Promise<ApiResponse<RaceResult[]>>
       laps: result.laps,
       status: result.status,
       raceName: race.raceName,
+      round: race.round,
     })) ?? [];
     return { data: results.length ? results : fallbackLatestRaceResults, source: results.length ? "live" : "fallback" };
   } catch (error) {
     return fallback(fallbackLatestRaceResults, error);
   }
+}
+
+export function generateAutoSummary(results: RaceResult[]): string {
+  if (!results || results.length === 0) {
+    return "Race results are currently updating.";
+  }
+
+  const raceName = results[0].raceName;
+  const p1 = results.find(r => r.position === 1);
+  const p2 = results.find(r => r.position === 2);
+  const p3 = results.find(r => r.position === 3);
+
+  if (p1 && p2 && p3) {
+    return `${raceName} wrapped with ${p1.driverName} taking victory for ${p1.constructorName}, ahead of ${p2.driverName} and ${p3.driverName}. The result reshaped the weekend story heading into the next round.`;
+  } else if (p1) {
+    return `${raceName} wrapped with ${p1.driverName} taking victory for ${p1.constructorName}. Full podium data is still updating.`;
+  }
+  
+  return `${raceName} results are available, but full podium data is still updating.`;
 }

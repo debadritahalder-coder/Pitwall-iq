@@ -7,21 +7,28 @@ import InsightCard from "../components/InsightCard";
 import LoadingState from "../components/LoadingState";
 import StatCard from "../components/StatCard";
 import { historyMoments } from "../lib/fallbackData";
-import { getConstructorStandings, getCurrentRaceSchedule, getDriverStandings } from "../lib/f1Api";
-import type { ApiResponse, ConstructorStanding, DriverStanding, Race } from "../lib/types";
+import { getConstructorStandings, getCurrentRaceSchedule, getDriverStandings, getLatestRaceResults, generateAutoSummary } from "../lib/f1Api";
+import type { ApiResponse, ConstructorStanding, DriverStanding, Race, RaceResult } from "../lib/types";
 
 export default function Dashboard() {
   const [races, setRaces] = useState<ApiResponse<Race[]> | null>(null);
   const [drivers, setDrivers] = useState<ApiResponse<DriverStanding[]> | null>(null);
   const [constructors, setConstructors] = useState<ApiResponse<ConstructorStanding[]> | null>(null);
+  const [latestResults, setLatestResults] = useState<ApiResponse<RaceResult[]> | null>(null);
   const [showLocalTime, setShowLocalTime] = useState(true);
 
   useEffect(() => {
-    void Promise.all([getCurrentRaceSchedule(), getDriverStandings(), getConstructorStandings()]).then(
-      ([raceData, driverData, constructorData]) => {
+    void Promise.all([
+      getCurrentRaceSchedule(), 
+      getDriverStandings(), 
+      getConstructorStandings(),
+      getLatestRaceResults()
+    ]).then(
+      ([raceData, driverData, constructorData, latestData]) => {
         setRaces(raceData);
         setDrivers(driverData);
         setConstructors(constructorData);
+        setLatestResults(latestData);
       },
     );
   }, []);
@@ -31,6 +38,29 @@ export default function Dashboard() {
     const upcoming = races?.data.find((race) => new Date(race.date) >= today);
     return upcoming ?? races?.data[0];
   }, [races]);
+
+  const raceSummaryInfo = useMemo(() => {
+    if (!featuredRace) return { title: "Race Weekend Summary", text: "", sourceLabel: "" };
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const startDate = featuredRace.weekendStartDate ? new Date(featuredRace.weekendStartDate) : new Date(featuredRace.date);
+    
+    if (today < startDate) {
+      return { 
+        title: "Previous Race Summary", 
+        text: generateAutoSummary(latestResults?.data || []),
+        sourceLabel: latestResults?.source === 'live' ? "Live API data" : "Fallback data"
+      };
+    } else {
+      return { 
+        title: "Race Weekend Summary", 
+        text: featuredRace.currentWeekendSummary || `The ${featuredRace.raceName} weekend is active. Stay tuned for track session updates.`,
+        sourceLabel: races?.source === 'live' ? "Live API data" : "Fallback data"
+      };
+    }
+  }, [featuredRace, latestResults, races]);
 
   const formattedDate = useMemo(() => {
     if (!featuredRace?.date) return "TBC";
@@ -49,11 +79,11 @@ export default function Dashboard() {
     });
   }, [featuredRace?.date, featuredRace?.time, showLocalTime]);
 
-  if (!races || !drivers || !constructors) {
+  if (!races || !drivers || !constructors || !latestResults) {
     return <LoadingState />;
   }
 
-  const usingFallback = [races, drivers, constructors].some((response) => response.source === "fallback");
+  const usingFallback = [races, drivers, constructors, latestResults].some((response) => response.source === "fallback");
 
   return (
     <div className="space-y-16">
@@ -108,12 +138,21 @@ export default function Dashboard() {
         <div className="panel p-6">
           <div className="mb-6 flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-racing">Race weekend summary</p>
-              <h2 className="mt-2 text-2xl font-black text-white">{featuredRace?.raceName}</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-racing">{raceSummaryInfo.title}</p>
+              <h2 className="mt-2 text-2xl font-black text-white">
+                {raceSummaryInfo.title === "Previous Race Summary" && latestResults?.data[0] 
+                  ? latestResults.data[0].raceName 
+                  : featuredRace?.raceName}
+              </h2>
             </div>
-            <span className="border border-white/10 bg-white/5 px-3 py-1 text-sm text-slate-300">Round {featuredRace?.round}</span>
+            <span className="border border-white/10 bg-white/5 px-3 py-1 text-sm text-slate-300">
+              Round {raceSummaryInfo.title === "Previous Race Summary" && latestResults?.data[0] 
+                ? latestResults.data[0].round || '-'
+                : featuredRace?.round}
+            </span>
           </div>
-          <p className="leading-7 text-slate-300">{featuredRace?.keyRaceFactor}</p>
+          <p className="leading-7 text-slate-300">{raceSummaryInfo.text}</p>
+          <p className="mt-4 text-xs tracking-wider text-slate-500 uppercase">{raceSummaryInfo.sourceLabel}</p>
         </div>
 
         <div className="panel p-6">

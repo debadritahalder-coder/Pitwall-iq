@@ -7,6 +7,10 @@ export type Race = {
   locality: string;
   date: string;
   time?: string;
+  weekendStartDate?: string;
+  weekendEndDate?: string;
+  previousRaceSummary?: string;
+  currentWeekendSummary?: string;
   keyRaceFactor: string;
 };
 
@@ -37,6 +41,7 @@ export type RaceResult = {
   laps: string;
   status: string;
   raceName: string;
+  round?: string;
 };
 
 export type HistoryMoment = {

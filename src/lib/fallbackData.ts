@@ -17,6 +17,10 @@ export const fallbackRaceSchedule: Race[] = [
     locality: "Montreal",
     date: "2026-06-07",
     time: "18:00:00Z",
+    weekendStartDate: "2026-06-05",
+    weekendEndDate: "2026-06-07",
+    previousRaceSummary: "Monaco delivered a processional race where track position proved king. Verstappen managed tyres expertly from pole to hold off Norris, while Ferrari struggled with graining in the warmer conditions.",
+    currentWeekendSummary: "Low-grip exits and heavy braking zones can punish tyre wear and reward decisive undercut timing. Watch for the 'Wall of Champions' to claim victims in Qualifying.",
     keyRaceFactor: "Low-grip exits and heavy braking zones can punish tyre wear and reward decisive undercut timing.",
   },
   {
@@ -28,6 +32,10 @@ export const fallbackRaceSchedule: Race[] = [
     locality: "Spielberg",
     date: "2026-06-28",
     time: "13:00:00Z",
+    weekendStartDate: "2026-06-26",
+    weekendEndDate: "2026-06-28",
+    previousRaceSummary: "Montreal saw mixed conditions favoring McLaren's setup, but Red Bull's straight-line speed ultimately secured the win after a late safety car restart.",
+    currentWeekendSummary: "Short laps, track limits, and DRS trains can make qualifying position unusually valuable. The Sprint format this weekend adds pressure to FP1 setups.",
     keyRaceFactor: "Short laps, track limits, and DRS trains can make qualifying position unusually valuable.",
   },
 ];
