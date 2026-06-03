@@ -186,3 +186,58 @@ export function generateAutoSummary(results: RaceResult[]): string {
   
   return `${raceName} results are available, but full podium data is still updating.`;
 }
+
+export type FullRaceResult = {
+  round: string;
+  raceName: string;
+  Results: Array<{
+    position: string;
+    positionText: string;
+    grid: string;
+    status: string;
+    Driver: { driverId: string };
+    Constructor: { constructorId: string };
+  }>;
+};
+
+export type FullQualifyingResult = {
+  round: string;
+  raceName: string;
+  QualifyingResults: Array<{
+    position: string;
+    Driver: { driverId: string };
+    Constructor: { constructorId: string };
+  }>;
+};
+
+export async function getAllRaceResults(): Promise<ApiResponse<FullRaceResult[]>> {
+  try {
+    const json = await fetchJson<{
+      MRData: {
+        RaceTable: {
+          Races: FullRaceResult[];
+        };
+      };
+    }>("/current/results.json?limit=1000");
+    const races = json.MRData.RaceTable.Races || [];
+    return { data: races, source: races.length ? "live" : "fallback" };
+  } catch (error) {
+    return fallback([], error);
+  }
+}
+
+export async function getAllQualifyingResults(): Promise<ApiResponse<FullQualifyingResult[]>> {
+  try {
+    const json = await fetchJson<{
+      MRData: {
+        RaceTable: {
+          Races: FullQualifyingResult[];
+        };
+      };
+    }>("/current/qualifying.json?limit=1000");
+    const races = json.MRData.RaceTable.Races || [];
+    return { data: races, source: races.length ? "live" : "fallback" };
+  } catch (error) {
+    return fallback([], error);
+  }
+}

@@ -93,3 +93,36 @@ export type ApiResponse<T> = {
   source: "live" | "fallback";
   error?: string;
 };
+
+export type DriverIntelligence = {
+  driverId: string;
+  fullName: string;
+  team: string;
+  points: number;
+  wins: number;
+  momentum: number;
+  status: "Hot" | "Stable" | "Risky" | "Rebuilding";
+  raceForm: { round: string; raceName: string; result: string; startPosition: number; finishPosition: number; status: string }[];
+  teammateBattle: {
+    teammateName: string;
+    pointsGap: number;
+    raceHeadToHead: string; 
+    qualiHeadToHead: string; 
+  };
+  qualiVsRace: {
+    averageQualifying: number | "pending";
+    averageFinish: number | "pending";
+    averageRaceGain: number | "pending";
+  };
+  consistency: {
+    score: number;
+    label: string;
+    dnfCount: number;
+    pointsFinishes: number;
+  };
+  pressure: {
+    score: number;
+    label: string;
+    basis: string;
+  };
+};
