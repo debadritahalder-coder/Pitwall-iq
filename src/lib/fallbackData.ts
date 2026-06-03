@@ -79,41 +79,57 @@ export const historyMoments: HistoryMoment[] = [
     title: "1950 British Grand Prix",
     description: "The first official Formula 1 World Championship race.",
     tag: "Origins",
+    image: "/history/british-gp-1950.jpg",
+    slug: "1950-british-grand-prix"
   },
   {
     title: "1976 Nurburgring",
     description: "Niki Lauda's crash and comeback became one of the defining stories of courage in F1 history.",
     tag: "Legacy",
+    image: "/history/lauda-nurburgring-1976.jpg",
+    slug: "1976-nurburgring"
   },
   {
     title: "1988 Senna vs Prost",
     description: "One of the most famous teammate rivalries, shaping the McLaren-Honda era.",
     tag: "Rivalry",
+    image: "/history/senna-prost-1988.jpg",
+    slug: "1988-senna-vs-prost"
   },
   {
     title: "1994 Imola",
     description: "A tragic weekend that changed Formula 1 safety forever.",
     tag: "Safety",
+    image: "/history/imola-1994.jpg",
+    slug: "1994-imola"
   },
   {
     title: "2008 Brazilian Grand Prix",
     description: "Lewis Hamilton won the championship on the final corner of the final lap.",
     tag: "Title Decider",
+    image: "/history/brazil-2008.jpg",
+    slug: "2008-brazilian-grand-prix"
   },
   {
     title: "2009 Brawn GP",
     description: "A shock championship-winning season from a team that almost did not exist.",
     tag: "Underdog",
+    image: "/history/brawn-gp-2009.jpg",
+    slug: "2009-brawn-gp"
   },
   {
     title: "2012 Brazilian Grand Prix",
     description: "A chaotic title finale remembered for drama, rain, and championship pressure.",
     tag: "Chaos",
+    image: "/history/brazil-2012.jpg",
+    slug: "2012-brazilian-grand-prix"
   },
   {
     title: "2021 Abu Dhabi Grand Prix",
     description: "One of the most controversial modern title finales in Formula 1.",
     tag: "Controversy",
+    image: "/history/abu-dhabi-2021.jpg",
+    slug: "2021-abu-dhabi-grand-prix"
   },
 ];
 

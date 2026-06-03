@@ -43,6 +43,8 @@ export type HistoryMoment = {
   title: string;
   description: string;
   tag: string;
+  image?: string;
+  slug?: string;
 };
 
 export type GlossaryTerm = {

@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [races, setRaces] = useState<ApiResponse<Race[]> | null>(null);
   const [drivers, setDrivers] = useState<ApiResponse<DriverStanding[]> | null>(null);
   const [constructors, setConstructors] = useState<ApiResponse<ConstructorStanding[]> | null>(null);
+  const [showLocalTime, setShowLocalTime] = useState(true);
 
   useEffect(() => {
     void Promise.all([getCurrentRaceSchedule(), getDriverStandings(), getConstructorStandings()]).then(
@@ -30,6 +31,23 @@ export default function Dashboard() {
     const upcoming = races?.data.find((race) => new Date(race.date) >= today);
     return upcoming ?? races?.data[0];
   }, [races]);
+
+  const formattedDate = useMemo(() => {
+    if (!featuredRace?.date) return "TBC";
+    const [year, month, day] = featuredRace.date.split("-");
+    return `${day}-${month}-${year}`;
+  }, [featuredRace?.date]);
+
+  const formattedTime = useMemo(() => {
+    if (!featuredRace?.date || !featuredRace?.time) return "TBC";
+    const dateObj = new Date(`${featuredRace.date}T${featuredRace.time}`);
+    return dateObj.toLocaleTimeString(undefined, { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      timeZone: showLocalTime ? undefined : 'UTC',
+      timeZoneName: 'short' 
+    });
+  }, [featuredRace?.date, featuredRace?.time, showLocalTime]);
 
   if (!races || !drivers || !constructors) {
     return <LoadingState />;
@@ -65,9 +83,21 @@ export default function Dashboard() {
           <p className="mt-2 text-slate-400">{featuredRace?.circuitName}</p>
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             <StatCard label="Country" value={featuredRace?.country ?? "TBC"} detail={featuredRace?.locality} accent="blue" />
-            <StatCard label="Race date" value={featuredRace?.date ?? "TBC"} detail={`Round ${featuredRace?.round ?? "-"}`} />
+            <StatCard label="Race date" value={formattedDate} detail={`Round ${featuredRace?.round ?? "-"}`} />
             <StatCard label="Season" value={featuredRace?.season ?? "TBC"} detail="Jolpica / fallback feed" accent="gold" />
-            <StatCard label="Data" value={races.source === "live" ? "Live" : "Fallback"} detail="API resilient" accent="green" />
+            <StatCard 
+              label="Race time" 
+              value={formattedTime} 
+              detail={
+                <button 
+                  onClick={() => setShowLocalTime((prev) => !prev)}
+                  className="mt-1 text-xs text-slate-400 underline hover:text-white"
+                >
+                  Show {showLocalTime ? "Track Time (UTC)" : "Local Time"}
+                </button>
+              } 
+              accent="green" 
+            />
           </div>
         </div>
       </section>
