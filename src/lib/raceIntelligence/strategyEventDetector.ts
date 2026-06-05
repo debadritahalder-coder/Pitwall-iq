@@ -34,7 +34,7 @@ export function detectStrategyEvents(
           type: "safety_car_pit",
           driver_number: stop.driver_number,
           lap: stop.lap_number,
-          description: `Driver ${stop.driver_number} likely gained an advantage by pitting under SC/VSC conditions on lap ${stop.lap_number}.`,
+          description: `Driver ${stop.driver_number} may have reduced effective pit-loss by pitting under SC/VSC conditions on lap ${stop.lap_number}.`,
           confidence: "medium"
         });
       }
@@ -92,6 +92,34 @@ export function detectStrategyEvents(
           description: `Driver ${stop.driver_number} showed a significant pace improvement after stopping on lap ${stop.lap_number}, opening a possible undercut window.`,
           confidence: "medium"
         });
+      }
+    }
+  });
+
+  // 4. Possible Overcut Candidates
+  validPitStops.forEach(stop => {
+    // Find stops that happened before this stop but within a reasonable window (e.g., 10 laps)
+    const windowStops = validPitStops.filter(s => s.lap_number < stop.lap_number && s.lap_number >= stop.lap_number - 10);
+    if (windowStops.length >= 3) {
+      const avgPitLap = windowStops.reduce((sum, s) => sum + s.lap_number, 0) / windowStops.length;
+      if (stop.lap_number >= avgPitLap + 2) {
+        // maintained pace within 0.5s of their previous 3 laps
+        const dLaps = driverLaps[stop.driver_number] || [];
+        const prevLaps = dLaps.filter(l => l.lap_number >= stop.lap_number - 4 && l.lap_number < stop.lap_number - 1); // 3 laps before the in-lap
+        if (prevLaps.length >= 3) {
+           const paces = prevLaps.map(l => l.lap_duration);
+           const maxPace = Math.max(...paces);
+           const minPace = Math.min(...paces);
+           if (maxPace - minPace <= 0.5) {
+             events.push({
+               type: "possible_overcut",
+               driver_number: stop.driver_number,
+               lap: stop.lap_number,
+               description: `Driver ${stop.driver_number} extended the stint beyond the field average... suggesting a possible overcut attempt.`,
+               confidence: "medium"
+             });
+           }
+        }
       }
     }
   });

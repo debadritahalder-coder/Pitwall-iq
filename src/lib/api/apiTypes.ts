@@ -91,11 +91,11 @@ export interface OpenF1RaceControl {
   meeting_key: number;
   session_key: number;
   date: string;
-  category: string;
-  message: string;
-  flag: string;
-  scope: string;
-  sector: number;
+  category?: string;
+  message?: string;
+  flag?: string;
+  scope?: string;
+  sector?: number;
   lap_number: number;
 }
 

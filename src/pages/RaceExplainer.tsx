@@ -6,6 +6,24 @@ import { detectStrategyEvents } from "../lib/raceIntelligence/strategyEventDetec
 import { generateRaceNarrative } from "../lib/raceIntelligence/raceNarrative";
 import type { PitStopAnalysis, StintAnalysis, StrategyEvent, RaceNarrative } from "../lib/raceIntelligence/types";
 
+function selectBestCompletedSession(sessions: OpenF1Session[]): OpenF1Session | null {
+  const now = Date.now();
+  const completedSessions = sessions.filter(s => s.date_end && new Date(s.date_end).getTime() < now);
+  if (completedSessions.length === 0) return null;
+
+  completedSessions.sort((a, b) => new Date(b.date_start).getTime() - new Date(a.date_start).getTime());
+
+  const raceSession = completedSessions.find(s => 
+    s.session_name.toLowerCase().includes("race") && 
+    s.session_type.toLowerCase().includes("race")
+  ) || completedSessions.find(s => 
+    s.session_name.toLowerCase().includes("race") ||
+    s.session_type.toLowerCase().includes("race")
+  );
+
+  return raceSession || completedSessions[0];
+}
+
 export default function RaceExplainer() {
   const [meetings, setMeetings] = useState<OpenF1Meeting[]>([]);
   const [sessions, setSessions] = useState<OpenF1Session[]>([]);
@@ -48,14 +66,11 @@ export default function RaceExplainer() {
               setSelectedMeetingKey(meeting.meeting_key);
               
               // Find the most recent completed Race session, or any if no race
-              const pastSessions = meetingSessions.filter(s => new Date(s.date_end).getTime() < Date.now());
-              pastSessions.sort((a, b) => new Date(b.date_start).getTime() - new Date(a.date_start).getTime());
-              
-              const raceSession = pastSessions.find(s => s.session_name.toLowerCase().includes("race"));
-              if (raceSession) {
-                setSelectedSessionKey(raceSession.session_key);
-              } else if (pastSessions.length > 0) {
-                setSelectedSessionKey(pastSessions[0].session_key);
+              const bestSession = selectBestCompletedSession(meetingSessions);
+              if (bestSession) {
+                setSelectedSessionKey(bestSession.session_key);
+              } else {
+                setSelectedSessionKey("");
               }
               break; // Found our default
             }
@@ -78,8 +93,9 @@ export default function RaceExplainer() {
         const data = await getOpenF1Sessions(Number(selectedMeetingKey));
         data.sort((a, b) => new Date(b.date_start).getTime() - new Date(a.date_start).getTime());
         setSessions(data);
-        if (data.length > 0) {
-           setSelectedSessionKey(data[0].session_key);
+        const bestSession = selectBestCompletedSession(data);
+        if (bestSession) {
+           setSelectedSessionKey(bestSession.session_key);
         } else {
            setSelectedSessionKey("");
         }
@@ -238,15 +254,19 @@ export default function RaceExplainer() {
           </span>
         ) : error ? (
            <span className="text-sm font-medium text-red-400">{error}</span>
+        ) : !selectedSessionKey ? (
+          <span className="flex items-center gap-2 text-sm font-medium text-slate-400">
+            <div className="h-2 w-2 bg-slate-400 rounded-full" /> Select a completed session
+          </span>
         ) : narrative && !narrative.dataAvailable ? (
           <span className="flex items-center gap-2 text-sm font-medium text-slate-400">
             <div className="h-2 w-2 bg-slate-400 rounded-full" /> Waiting for session data
           </span>
-        ) : (
+        ) : narrative && narrative.dataAvailable ? (
           <span className="flex items-center gap-2 text-sm font-medium text-green-400">
-            <div className="h-2 w-2 bg-green-400 rounded-full shadow-[0_0_8px_rgba(74,222,128,0.8)]" /> Historical Analysis Loaded
+            <div className="h-2 w-2 bg-green-400 rounded-full shadow-[0_0_8px_rgba(74,222,128,0.8)]" /> Race Analysis Complete
           </span>
-        )}
+        ) : null}
       </div>
 
       {!isLoading && narrative && narrative.dataAvailable && (
