@@ -1,10 +1,18 @@
 import { useEffect, useState, useMemo } from "react";
-import { getOpenF1Meetings, getOpenF1Sessions, getOpenF1Laps, getOpenF1PitStops, getOpenF1Stints, getOpenF1RaceControl, getOpenF1Drivers } from "../lib/api/openF1Client";
+import { getOpenF1Meetings, getOpenF1Sessions, getOpenF1Laps, getOpenF1PitStops, getOpenF1Stints, getOpenF1RaceControl, getOpenF1Drivers, getOpenF1Weather } from "../lib/api/openF1Client";
 import type { OpenF1Meeting, OpenF1Session, OpenF1Lap, OpenF1PitStop, OpenF1Stint, OpenF1RaceControl as RaceControl, OpenF1Driver } from "../lib/api/apiTypes";
 import { analyzePitStops, analyzeStints } from "../lib/raceIntelligence/pitStopAnalyzer";
 import { detectStrategyEvents } from "../lib/raceIntelligence/strategyEventDetector";
 import { generateRaceNarrative } from "../lib/raceIntelligence/raceNarrative";
 import type { PitStopAnalysis, StintAnalysis, StrategyEvent, RaceNarrative } from "../lib/raceIntelligence/types";
+import { SessionPicker } from "../components/race/SessionPicker";
+import { DataStatusBadge } from "../components/race/DataStatusBadge";
+import { RaceSummaryCard } from "../components/race/RaceSummaryCard";
+import { StrategyEventCard } from "../components/race/StrategyEventCard";
+import { RaceControlPanel } from "../components/race/RaceControlPanel";
+import { PitStopTable } from "../components/race/PitStopTable";
+import { StintTimeline } from "../components/race/StintTimeline";
+import { WeatherPanel } from "../components/race/WeatherPanel";
 
 function selectBestCompletedSession(sessions: OpenF1Session[]): OpenF1Session | null {
   const now = Date.now();
@@ -39,6 +47,8 @@ export default function RaceExplainer() {
   const [stints, setStints] = useState<OpenF1Stint[]>([]);
   const [raceControl, setRaceControl] = useState<RaceControl[]>([]);
   const [drivers, setDrivers] = useState<OpenF1Driver[]>([]);
+  const [weather, setWeather] = useState<any[]>([]);
+  const [lapsCount, setLapsCount] = useState(0);
   
   const [pitAnalysis, setPitAnalysis] = useState<PitStopAnalysis | null>(null);
   const [stintAnalysis, setStintAnalysis] = useState<StintAnalysis | null>(null);
@@ -118,18 +128,21 @@ export default function RaceExplainer() {
         setIsLoading(true);
         setError("");
         
-        const [lapsData, pitStopsData, stintsData, raceControlData, driversData] = await Promise.all([
+        const [lapsData, pitStopsData, stintsData, raceControlData, driversData, weatherData] = await Promise.all([
           getOpenF1Laps(Number(selectedSessionKey)),
           getOpenF1PitStops(Number(selectedSessionKey)),
           getOpenF1Stints(Number(selectedSessionKey)),
           getOpenF1RaceControl(Number(selectedSessionKey)),
           getOpenF1Drivers(Number(selectedSessionKey)),
+          getOpenF1Weather(Number(selectedSessionKey)),
         ]);
 
         setPitStops(pitStopsData);
         setStints(stintsData);
         setRaceControl(raceControlData);
         setDrivers(driversData);
+        setWeather(weatherData);
+        setLapsCount(lapsData.length);
 
         const pitAna = analyzePitStops(pitStopsData);
         const stintAna = analyzeStints(stintsData);
@@ -148,6 +161,8 @@ export default function RaceExplainer() {
         setStrategyEvents([]);
         setNarrative(null);
         setDrivers([]);
+        setWeather([]);
+        setLapsCount(0);
       } finally {
         setIsLoading(false);
       }
@@ -218,200 +233,42 @@ export default function RaceExplainer() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold uppercase text-slate-400">Meeting</label>
-          <select 
-            value={selectedMeetingKey} 
-            onChange={(e) => setSelectedMeetingKey(Number(e.target.value))}
-            className="w-full bg-carbon/50 border border-white/10 p-3 text-white focus:border-racing outline-none"
-          >
-            {meetings.map((m) => (
-              <option key={m.meeting_key} value={m.meeting_key}>{m.meeting_name} ({m.year})</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold uppercase text-slate-400">Session</label>
-          <select 
-            value={selectedSessionKey} 
-            onChange={(e) => setSelectedSessionKey(Number(e.target.value))}
-            className="w-full bg-carbon/50 border border-white/10 p-3 text-white focus:border-racing outline-none"
-            disabled={!selectedMeetingKey || sessions.length === 0}
-          >
-            {sessions.map((s) => (
-              <option key={s.session_key} value={s.session_key}>{s.session_name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <SessionPicker 
+        meetings={meetings} 
+        sessions={sessions} 
+        selectedMeetingKey={selectedMeetingKey} 
+        selectedSessionKey={selectedSessionKey} 
+        onMeetingChange={setSelectedMeetingKey} 
+        onSessionChange={setSelectedSessionKey} 
+      />
 
-      <div className="flex items-center justify-between bg-carbon border border-white/10 p-4">
-        <span className="text-sm font-medium text-slate-300">Data Source: OpenF1 API (Historical)</span>
-        {isLoading ? (
-          <span className="flex items-center gap-2 text-sm font-medium text-amber-400">
-            <div className="h-2 w-2 animate-pulse bg-amber-400 rounded-full" /> Fetching Historical Data...
-          </span>
-        ) : error ? (
-           <span className="text-sm font-medium text-red-400">{error}</span>
-        ) : !selectedSessionKey ? (
-          <span className="flex items-center gap-2 text-sm font-medium text-slate-400">
-            <div className="h-2 w-2 bg-slate-400 rounded-full" /> Select a completed session
-          </span>
-        ) : narrative && !narrative.dataAvailable ? (
-          <span className="flex items-center gap-2 text-sm font-medium text-slate-400">
-            <div className="h-2 w-2 bg-slate-400 rounded-full" /> Waiting for session data
-          </span>
-        ) : narrative && narrative.dataAvailable ? (
-          <span className="flex items-center gap-2 text-sm font-medium text-green-400">
-            <div className="h-2 w-2 bg-green-400 rounded-full shadow-[0_0_8px_rgba(74,222,128,0.8)]" /> Historical Analysis Loaded
-          </span>
-        ) : (
-          <span className="flex items-center gap-2 text-sm font-medium text-slate-400">
-            <div className="h-2 w-2 bg-slate-400 rounded-full" /> No analysis loaded
-          </span>
-        )}
-      </div>
+      <DataStatusBadge 
+        isLoading={isLoading} 
+        error={error} 
+        selectedSessionKey={selectedSessionKey} 
+        narrative={narrative} 
+        counts={{
+          drivers: drivers.length,
+          laps: lapsCount,
+          pitStops: pitStops.length,
+          stints: stints.length,
+          raceControl: raceControl.length,
+          weather: weather.length
+        }}
+      />
 
       {!isLoading && narrative && narrative.dataAvailable && (
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-gradient-to-br from-carbon/80 to-carbon border border-white/10 p-6">
-              <h2 className="mb-4 text-xl font-bold uppercase text-white">Race Summary</h2>
-              <p className="text-lg leading-relaxed text-slate-300">
-                {replaceDriverLabels(isTechnical ? narrative.technical : narrative.simple)}
-              </p>
-            </div>
-
-            <div className="bg-carbon border border-white/10 p-6">
-              <h2 className="mb-4 text-xl font-bold uppercase text-white">Strategy Events Detected</h2>
-              {strategyEvents.length === 0 ? (
-                <p className="text-slate-400 text-sm">No major strategy anomalies detected based on available data.</p>
-              ) : (
-                <div className="space-y-4">
-                  {strategyEvents.map((evt, idx) => {
-                    const driver = driverLookup[evt.driver_number];
-                    return (
-                      <div key={idx} className="flex gap-4 border-l-2 border-racing pl-4 py-2">
-                        {driver?.team_colour && (
-                          <div 
-                            className="w-1 self-stretch" 
-                            style={{ backgroundColor: `#${driver.team_colour}` }} 
-                          />
-                        )}
-                        <div>
-                          <span className="text-xs font-black uppercase text-racing tracking-wider">
-                            {evt.type.replace(/_/g, " ")} 
-                            {driver ? ` - ${driver.full_name} (${driver.name_acronym})` : ` - Driver ${evt.driver_number}`}
-                          </span>
-                          <p className="text-sm text-slate-300 mt-1">
-                            {replaceDriverLabels(evt.description)}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            
-             <div className="bg-carbon border border-white/10 p-6">
-              <h2 className="mb-4 text-xl font-bold uppercase text-white">Race Control Events</h2>
-              {raceControl.filter(isRaceControlInterruption).length === 0 ? (
-                 <p className="text-slate-400 text-sm">No safety car or flag message events detected in this session's logs.</p>
-              ) : (
-                 <div className="space-y-3">
-                   {raceControl.filter(isRaceControlInterruption).slice(0, 10).map((rc, idx) => (
-                      <div key={idx} className="bg-white/5 p-3 flex justify-between items-center">
-                        <span className="font-semibold text-white">{rc.message || rc.category}</span>
-                        <span className="text-xs text-slate-400">{rc.lap_number ? `Lap ${rc.lap_number}` : "Pre-race/Unknown Lap"}</span>
-                      </div>
-                   ))}
-                 </div>
-              )}
-            </div>
+            <RaceSummaryCard summaryText={replaceDriverLabels(isTechnical ? narrative.technical : narrative.simple)} />
+            <StrategyEventCard events={strategyEvents} driverLookup={driverLookup} replaceDriverLabels={replaceDriverLabels} />
+            <RaceControlPanel raceControl={raceControl} filterFn={isRaceControlInterruption} />
+            <WeatherPanel weather={weather} />
           </div>
 
           <div className="space-y-6">
-            <div className="bg-carbon border border-white/10 p-6">
-              <h2 className="mb-4 text-xl font-bold uppercase text-white">Pit Stop Analyzer</h2>
-              <div className="space-y-4">
-                <div className="flex justify-between border-b border-white/10 pb-2">
-                  <span className="text-sm text-slate-400">Average Stop Lap</span>
-                  <span className="font-bold text-white">{pitAnalysis?.averageStopLap ?? "N/A"}</span>
-                </div>
-                <div className="flex justify-between border-b border-white/10 pb-2">
-                  <span className="text-sm text-slate-400">Earliest Stop</span>
-                  <span className="font-bold text-white">{pitAnalysis?.earliestStopLap ? `Lap ${pitAnalysis.earliestStopLap}` : "N/A"}</span>
-                </div>
-                <div className="flex justify-between border-b border-white/10 pb-2">
-                  <span className="text-sm text-slate-400">Latest Stop</span>
-                  <span className="font-bold text-white">{pitAnalysis?.latestStopLap ? `Lap ${pitAnalysis.latestStopLap}` : "N/A"}</span>
-                </div>
-                <div className="flex justify-between pb-2">
-                  <span className="text-sm text-slate-400">Multi-Stop Drivers</span>
-                  <span className="font-bold text-white">{pitAnalysis?.driversWithMultipleStops.length ?? 0}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-carbon border border-white/10 p-6">
-              <h2 className="mb-4 text-xl font-bold uppercase text-white">Tyre Stint Timeline</h2>
-              {stintAnalysis?.longestStint ? (
-                <div className="space-y-4">
-                  <div>
-                    <span className="text-xs uppercase text-slate-400 block mb-1">Longest Stint</span>
-                    <div className="bg-white/5 p-3 border border-white/10 flex items-center gap-3">
-                      {driverLookup[stintAnalysis.longestStint.driver_number]?.team_colour && (
-                        <div 
-                          className="w-1.5 h-8 self-stretch" 
-                          style={{ backgroundColor: `#${driverLookup[stintAnalysis.longestStint.driver_number].team_colour}` }} 
-                        />
-                      )}
-                      <div>
-                        <p className="text-sm font-bold text-white">
-                          {getDriverName(stintAnalysis.longestStint.driver_number)}
-                          {driverLookup[stintAnalysis.longestStint.driver_number]?.name_acronym && (
-                            <span className="text-xs text-slate-400 ml-2">({driverLookup[stintAnalysis.longestStint.driver_number].name_acronym})</span>
-                          )}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {driverLookup[stintAnalysis.longestStint.driver_number]?.team_name || "Unknown Team"}
-                        </p>
-                        <p className="text-xs text-slate-400">{stintAnalysis.longestStint.compound} ({stintAnalysis.longestStint.lap_end - stintAnalysis.longestStint.lap_start} laps)</p>
-                      </div>
-                    </div>
-                  </div>
-                  {stintAnalysis.shortestStint && (
-                    <div>
-                      <span className="text-xs uppercase text-slate-400 block mb-1">Shortest Stint</span>
-                      <div className="bg-white/5 p-3 border border-white/10 flex items-center gap-3">
-                        {driverLookup[stintAnalysis.shortestStint.driver_number]?.team_colour && (
-                          <div 
-                            className="w-1.5 h-8 self-stretch" 
-                            style={{ backgroundColor: `#${driverLookup[stintAnalysis.shortestStint.driver_number].team_colour}` }} 
-                          />
-                        )}
-                        <div>
-                          <p className="text-sm font-bold text-white">
-                            {getDriverName(stintAnalysis.shortestStint.driver_number)}
-                            {driverLookup[stintAnalysis.shortestStint.driver_number]?.name_acronym && (
-                              <span className="text-xs text-slate-400 ml-2">({driverLookup[stintAnalysis.shortestStint.driver_number].name_acronym})</span>
-                            )}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {driverLookup[stintAnalysis.shortestStint.driver_number]?.team_name || "Unknown Team"}
-                          </p>
-                          <p className="text-xs text-slate-400">{stintAnalysis.shortestStint.compound} ({stintAnalysis.shortestStint.lap_end - stintAnalysis.shortestStint.lap_start} laps)</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-slate-400 text-sm">No stint data available.</p>
-              )}
-            </div>
+            <PitStopTable pitStops={pitStops} pitAnalysis={pitAnalysis} driverLookup={driverLookup} raceControl={raceControl} strategyEvents={strategyEvents} />
+            <StintTimeline stints={stints} driverLookup={driverLookup} />
           </div>
         </div>
       )}
