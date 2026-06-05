@@ -7,17 +7,15 @@ import HistoryMomentCard from "../components/HistoryMomentCard";
 import HistoryVaultDetailPanel from "../components/HistoryVaultDetailPanel";
 import LoadingState from "../components/LoadingState";
 import { historyMoments } from "../lib/fallbackData";
-import { getConstructorStandings, getCurrentRaceSchedule, getDriverStandings, getLatestRaceResults } from "../lib/f1Api";
-import { getOpenF1Meetings, getOpenF1Sessions, getOpenF1Drivers } from "../lib/api/openF1Client";
+import { getConstructorStandings, getCurrentRaceSchedule, getDriverStandings } from "../lib/f1Api";
+import { findDriverAsset, findTeamAsset } from "../lib/f1Assets";
 import { countryFlag } from "../lib/teamColors";
 import type { ApiResponse, ConstructorStanding, DriverStanding, Race } from "../lib/types";
-import type { OpenF1Driver } from "../lib/api/apiTypes";
 
 export default function Dashboard() {
   const [races, setRaces] = useState<ApiResponse<Race[]> | null>(null);
   const [drivers, setDrivers] = useState<ApiResponse<DriverStanding[]> | null>(null);
   const [constructors, setConstructors] = useState<ApiResponse<ConstructorStanding[]> | null>(null);
-  const [openF1Drivers, setOpenF1Drivers] = useState<OpenF1Driver[]>([]);
   const [activeTab, setActiveTab] = useState<"drivers" | "teams">("drivers");
   
   const [selectedMomentId, setSelectedMomentId] = useState<string | null>(null);
@@ -27,13 +25,11 @@ export default function Dashboard() {
     return historyMoments.find((m) => m.id === selectedMomentId);
   }, [selectedMomentId]);
 
-  // Fetch Jolpica standings data
   useEffect(() => {
     void Promise.all([
       getCurrentRaceSchedule(), 
       getDriverStandings(), 
       getConstructorStandings(),
-      getLatestRaceResults()
     ]).then(
       ([raceData, driverData, constructorData]) => {
         setRaces(raceData);
@@ -43,58 +39,43 @@ export default function Dashboard() {
     );
   }, []);
 
-  // Fetch OpenF1 drivers for headshots + team colors
-  useEffect(() => {
-    async function loadOpenF1Drivers() {
-      try {
-        const year = new Date().getFullYear();
-        const meetings = await getOpenF1Meetings(year);
-        meetings.sort((a, b) => new Date(b.date_start).getTime() - new Date(a.date_start).getTime());
-        for (const meeting of meetings) {
-          const sessions = await getOpenF1Sessions(meeting.meeting_key);
-          const completed = sessions.filter(s => s.date_end && new Date(s.date_end).getTime() < Date.now());
-          if (completed.length > 0) {
-            completed.sort((a, b) => new Date(b.date_start).getTime() - new Date(a.date_start).getTime());
-            const drv = await getOpenF1Drivers(completed[0].session_key);
-            const unique = Array.from(new Map(drv.map(d => [d.driver_number, d])).values());
-            setOpenF1Drivers(unique);
-            break;
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load OpenF1 drivers for headshots:", err);
-      }
-    }
-    loadOpenF1Drivers();
-  }, []);
-
   const featuredRace = useMemo(() => {
     const today = new Date();
     const upcoming = races?.data.find((race) => new Date(race.date) >= today);
     return upcoming ?? races?.data[0];
   }, [races]);
 
-  // Match Jolpica drivers to OpenF1 drivers for headshots
+  // Enrich Jolpica standings with official F1.com assets
   const enrichedDrivers = useMemo(() => {
     if (!drivers?.data) return [];
     return drivers.data.map(d => {
-      const match = openF1Drivers.find(o => {
-        const jolpicaLast = d.driverName.split(" ").slice(-1)[0].toLowerCase();
-        return o.last_name.toLowerCase() === jolpicaLast || 
-               o.full_name.toLowerCase() === d.driverName.toLowerCase() ||
-               (d.code && o.name_acronym === d.code);
-      });
+      const asset = findDriverAsset(d.driverName, d.code);
       return {
         ...d,
-        headshotUrl: match?.headshot_url,
-        teamColour: match?.team_colour,
-        countryCode: match?.country_code,
+        headshot: asset?.headshot,
+        headshotSmall: asset?.headshotSmall,
+        teamColor: asset?.teamColor || "#3a3a4a",
+        countryCode: asset?.countryCode,
+        teamLogoUrl: asset?.teamLogo,
       };
     });
-  }, [drivers, openF1Drivers]);
+  }, [drivers]);
+
+  // Enrich constructor standings with F1.com assets
+  const enrichedConstructors = useMemo(() => {
+    if (!constructors?.data) return [];
+    return constructors.data.map(c => {
+      const asset = findTeamAsset(c.constructorName);
+      return {
+        ...c,
+        teamColor: asset?.color || "#3a3a4a",
+        teamLogoUrl: asset?.logo,
+        teamCarUrl: asset?.car,
+      };
+    });
+  }, [constructors]);
 
   const top3 = enrichedDrivers.slice(0, 3);
-  
   // Reorder for podium display: [2nd, 1st, 3rd]
   const podiumOrder = top3.length === 3 ? [top3[1], top3[0], top3[2]] : top3;
 
@@ -147,8 +128,9 @@ export default function Dashboard() {
                     constructorName={driver.constructorName}
                     points={driver.points}
                     countryCode={driver.countryCode}
-                    headshotUrl={driver.headshotUrl}
-                    teamColour={driver.teamColour}
+                    headshotUrl={driver.headshot}
+                    teamColor={driver.teamColor}
+                    teamLogoUrl={driver.teamLogoUrl}
                   />
                 ))}
               </div>
@@ -165,7 +147,9 @@ export default function Dashboard() {
                 wins: d.wins,
                 code: d.code,
                 countryCode: d.countryCode,
-                teamColour: d.teamColour,
+                teamColor: d.teamColor,
+                headshotSmall: d.headshotSmall,
+                teamLogoUrl: d.teamLogoUrl,
               }))}
             />
           </>
@@ -173,7 +157,16 @@ export default function Dashboard() {
           /* Constructor Standings Table */
           <StandingsTable
             mode="teams"
-            constructorData={constructors.data}
+            constructorData={enrichedConstructors.map(c => ({
+              position: c.position,
+              constructorName: c.constructorName,
+              nationality: c.nationality,
+              points: c.points,
+              wins: c.wins,
+              teamColor: c.teamColor,
+              teamLogoUrl: c.teamLogoUrl,
+              teamCarUrl: c.teamCarUrl,
+            }))}
           />
         )}
 
