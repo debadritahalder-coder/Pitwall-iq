@@ -14,34 +14,21 @@ export function detectStrategyEvents(
     typeof stop.driver_number === 'number' && typeof stop.lap_number === 'number'
   );
   
+  if (!laps || laps.length === 0) {
+    events.push({
+      type: "traffic_risk", // just a fallback type
+      driver_number: 0,
+      lap: 0,
+      description: "Insufficient lap data for detailed strategy analysis.",
+      confidence: "low"
+    });
+    return events;
+  }
+
   const validLaps = laps.filter((lap): lap is OpenF1Lap & { driver_number: number; lap_number: number; lap_duration: number } => 
     typeof lap.driver_number === 'number' && typeof lap.lap_number === 'number' && typeof lap.lap_duration === 'number'
   );
 
-  // 1. Safety Car / VSC Pit Opportunities
-  // Find SC/VSC periods
-  const scEvents = raceControl.filter((rc) => 
-    rc.category === "SafetyCar" || 
-    rc.message?.toLowerCase().includes("safety car") || 
-    rc.message?.toLowerCase().includes("vsc")
-  );
-
-  scEvents.forEach((sc) => {
-    // If a pit stop happened within 2 laps of this event
-    validPitStops.forEach((stop) => {
-      if (typeof sc.lap_number === 'number' && stop.lap_number >= sc.lap_number && stop.lap_number <= sc.lap_number + 2) {
-        events.push({
-          type: "safety_car_pit",
-          driver_number: stop.driver_number,
-          lap: stop.lap_number,
-          description: `Driver ${stop.driver_number} may have reduced effective pit-loss by pitting under SC/VSC conditions on lap ${stop.lap_number}.`,
-          confidence: "medium"
-        });
-      }
-    });
-  });
-
-  // 2. Traffic Risk (very simple heuristic: slow lap immediately after pit out)
   // Group laps by driver
   const driverLaps: Record<number, typeof validLaps> = {};
   validLaps.forEach(lap => {
@@ -49,77 +36,124 @@ export function detectStrategyEvents(
     driverLaps[lap.driver_number].push(lap);
   });
 
+  // Find SC/VSC periods
+  const scEvents = raceControl.filter((rc) => 
+    rc.category?.toLowerCase().includes("safety") || 
+    rc.message?.toLowerCase().includes("safety car") || 
+    rc.message?.toLowerCase().includes("vsc")
+  );
+
+  const getSCLaps = () => {
+    const scLaps = new Set<number>();
+    scEvents.forEach(sc => {
+      if (typeof sc.lap_number === 'number') {
+        scLaps.add(sc.lap_number);
+        scLaps.add(sc.lap_number + 1);
+        scLaps.add(sc.lap_number + 2);
+      }
+    });
+    return scLaps;
+  };
+  const scLapsSet = getSCLaps();
+
+  // Helper to calculate baseline pace excluding pit laps and SC laps
+  const calculateBaselinePace = (dLaps: typeof validLaps, startLap: number, endLap: number, excludePitLaps: number[]) => {
+    const baselineLaps = dLaps.filter(l => 
+      l.lap_number >= startLap && 
+      l.lap_number <= endLap &&
+      !excludePitLaps.includes(l.lap_number) &&
+      !scLapsSet.has(l.lap_number)
+    );
+    if (baselineLaps.length === 0) return null;
+    return baselineLaps.reduce((sum, l) => sum + l.lap_duration, 0) / baselineLaps.length;
+  };
+
+  // 1. Safety Car / VSC Pit Opportunities
+  scEvents.forEach((sc) => {
+    validPitStops.forEach((stop) => {
+      if (typeof sc.lap_number === 'number' && stop.lap_number >= sc.lap_number && stop.lap_number <= sc.lap_number + 2) {
+        events.push({
+          type: "safety_car_pit",
+          driver_number: stop.driver_number,
+          lap: stop.lap_number,
+          description: `Driver ${stop.driver_number} likely reduced effective pit-loss by pitting under SC/VSC conditions around lap ${stop.lap_number}.`,
+          confidence: "high"
+        });
+      }
+    });
+  });
+
+  // 2. Traffic Risk
   validPitStops.forEach(stop => {
     const dLaps = driverLaps[stop.driver_number] || [];
     const outLap = dLaps.find(l => l.lap_number === stop.lap_number + 1);
     const nextLap = dLaps.find(l => l.lap_number === stop.lap_number + 2);
     
-    // If lap after outlap is unusually slow compared to their average, might be traffic
-    if (outLap && nextLap) {
-      // Find a baseline from 3 laps before the stop
-      const beforeLaps = dLaps.filter(l => l.lap_number >= stop.lap_number - 4 && l.lap_number < stop.lap_number);
-      if (beforeLaps.length > 0) {
-        const avgBefore = beforeLaps.reduce((sum, l) => sum + l.lap_duration, 0) / beforeLaps.length;
-        if (nextLap.lap_duration > avgBefore + 2.0) { // 2 seconds slower than old tyres
-          events.push({
-            type: "traffic_risk",
-            driver_number: stop.driver_number,
-            lap: stop.lap_number,
-            description: `Driver ${stop.driver_number} showed slower pace immediately after their lap ${stop.lap_number} stop, suggesting possible traffic on exit.`,
-            confidence: "low"
-          });
-        }
-      }
-    }
-  });
-
-  // 3. Possible Undercut Candidates
-  // Pit stop -> next laps are significantly faster than previous laps
-  validPitStops.forEach(stop => {
-    const dLaps = driverLaps[stop.driver_number] || [];
-    const beforeLaps = dLaps.filter(l => l.lap_number >= stop.lap_number - 4 && l.lap_number < stop.lap_number);
-    const afterLaps = dLaps.filter(l => l.lap_number > stop.lap_number + 1 && l.lap_number <= stop.lap_number + 4);
-
-    if (beforeLaps.length > 0 && afterLaps.length > 0) {
-      const avgBefore = beforeLaps.reduce((sum, l) => sum + l.lap_duration, 0) / beforeLaps.length;
-      const avgAfter = afterLaps.reduce((sum, l) => sum + l.lap_duration, 0) / afterLaps.length;
-
-      if (avgAfter < avgBefore - 1.5) { // 1.5s faster per lap
+    if (outLap && nextLap && !scLapsSet.has(stop.lap_number + 2)) {
+      const avgBefore = calculateBaselinePace(dLaps, stop.lap_number - 5, stop.lap_number - 1, [stop.lap_number]);
+      if (avgBefore && nextLap.lap_duration > avgBefore + 1.5) { 
         events.push({
-          type: "possible_undercut",
+          type: "traffic_risk",
           driver_number: stop.driver_number,
           lap: stop.lap_number,
-          description: `Driver ${stop.driver_number} showed a significant pace improvement after stopping on lap ${stop.lap_number}, opening a possible undercut window.`,
+          description: `Driver ${stop.driver_number} showed significantly slower pace immediately after their lap ${stop.lap_number} stop, suggesting possible traffic on exit.`,
           confidence: "medium"
         });
       }
     }
   });
 
-  // 4. Possible Overcut Candidates
-  validPitStops.forEach(stop => {
-    // Find stops that happened before this stop but within a reasonable window (e.g., 10 laps)
-    const windowStops = validPitStops.filter(s => s.lap_number < stop.lap_number && s.lap_number >= stop.lap_number - 10);
-    if (windowStops.length >= 3) {
-      const avgPitLap = windowStops.reduce((sum, s) => sum + s.lap_number, 0) / windowStops.length;
-      if (stop.lap_number >= avgPitLap + 2) {
-        // maintained pace within 0.5s of their previous 3 laps
-        const dLaps = driverLaps[stop.driver_number] || [];
-        const prevLaps = dLaps.filter(l => l.lap_number >= stop.lap_number - 4 && l.lap_number < stop.lap_number - 1); // 3 laps before the in-lap
-        if (prevLaps.length >= 3) {
-           const paces = prevLaps.map(l => l.lap_duration);
-           const maxPace = Math.max(...paces);
-           const minPace = Math.min(...paces);
-           if (maxPace - minPace <= 0.5) {
-             events.push({
-               type: "possible_overcut",
-               driver_number: stop.driver_number,
-               lap: stop.lap_number,
-               description: `Driver ${stop.driver_number} extended the stint beyond the field average... suggesting a possible overcut attempt.`,
-               confidence: "medium"
-             });
-           }
-        }
+  // 3. Possible Undercut Attempts (Strict Check)
+  // Check if Driver A pit, and Driver B pit 1-2 laps later
+  validPitStops.forEach(stopA => {
+    const laterStops = validPitStops.filter(stopB => 
+      stopB.driver_number !== stopA.driver_number &&
+      stopB.lap_number > stopA.lap_number && 
+      stopB.lap_number <= stopA.lap_number + 2
+    );
+
+    if (laterStops.length > 0) {
+      const dLapsA = driverLaps[stopA.driver_number] || [];
+      const avgBeforeA = calculateBaselinePace(dLapsA, stopA.lap_number - 4, stopA.lap_number - 1, [stopA.lap_number]);
+      const avgAfterA = calculateBaselinePace(dLapsA, stopA.lap_number + 2, stopA.lap_number + 4, [stopA.lap_number]);
+      
+      // If Driver A improved pace after pitting
+      if (avgBeforeA && avgAfterA && avgAfterA < avgBeforeA - 1.0) {
+        const driversB = laterStops.map(s => `Driver ${s.driver_number}`).join(", ");
+        events.push({
+          type: "possible_undercut",
+          driver_number: stopA.driver_number,
+          lap: stopA.lap_number,
+          description: `Driver ${stopA.driver_number} pitted early on lap ${stopA.lap_number} and improved pace, suggesting a possible undercut attempt against ${driversB} who pitted shortly after.`,
+          confidence: "high"
+        });
+      }
+    }
+  });
+
+  // 4. Possible Overcut Attempts
+  validPitStops.forEach(stopA => {
+    // Check if Driver A extended stint while others pitted
+    const earlierStops = validPitStops.filter(stopB => 
+      stopB.driver_number !== stopA.driver_number &&
+      stopB.lap_number < stopA.lap_number && 
+      stopB.lap_number >= stopA.lap_number - 3
+    );
+
+    if (earlierStops.length >= 2) {
+      const dLapsA = driverLaps[stopA.driver_number] || [];
+      const avgPaceWhileOthersPit = calculateBaselinePace(dLapsA, stopA.lap_number - 3, stopA.lap_number - 1, [stopA.lap_number]);
+      const avgEarlierPace = calculateBaselinePace(dLapsA, stopA.lap_number - 7, stopA.lap_number - 4, [stopA.lap_number]);
+
+      // If Driver A maintained pace while others pitted
+      if (avgPaceWhileOthersPit && avgEarlierPace && avgPaceWhileOthersPit <= avgEarlierPace + 0.5) {
+        events.push({
+          type: "possible_overcut",
+          driver_number: stopA.driver_number,
+          lap: stopA.lap_number,
+          description: `Driver ${stopA.driver_number} extended their stint to lap ${stopA.lap_number} while maintaining steady pace, suggesting a possible overcut strategy based on available data.`,
+          confidence: "medium"
+        });
       }
     }
   });
