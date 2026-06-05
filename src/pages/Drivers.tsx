@@ -1,89 +1,122 @@
 import { useEffect, useState } from "react";
-import ErrorFallback from "../components/ErrorFallback";
-import LoadingState from "../components/LoadingState";
-import StatCard from "../components/StatCard";
-import DriverIntelligenceRow from "../components/DriverIntelligenceRow";
-import { getDriverStandings, getAllRaceResults, getAllQualifyingResults } from "../lib/f1Api";
-import { buildDriverIntelligenceData } from "../lib/driverIntelligence";
-import type { DriverIntelligence } from "../lib/types";
+import { getOpenF1Meetings, getOpenF1Sessions, getOpenF1Drivers } from "../lib/api/openF1Client";
+import type { OpenF1Driver, OpenF1Session } from "../lib/api/apiTypes";
+
+function selectBestCompletedSession(sessions: OpenF1Session[]): OpenF1Session | null {
+  const now = Date.now();
+  const completedSessions = sessions.filter(s => s.date_end && new Date(s.date_end).getTime() < now);
+  if (completedSessions.length === 0) return null;
+
+  completedSessions.sort((a, b) => new Date(b.date_start).getTime() - new Date(a.date_start).getTime());
+
+  const raceSession = completedSessions.find(s => 
+    s.session_name.toLowerCase().includes("race") && 
+    s.session_type.toLowerCase().includes("race")
+  ) || completedSessions.find(s => 
+    s.session_name.toLowerCase().includes("race") ||
+    s.session_type.toLowerCase().includes("race")
+  );
+
+  return raceSession || completedSessions[0];
+}
 
 export default function Drivers() {
-  const [intelligenceData, setIntelligenceData] = useState<DriverIntelligence[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [drivers, setDrivers] = useState<OpenF1Driver[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    void Promise.all([
-      getDriverStandings(),
-      getAllRaceResults(),
-      getAllQualifyingResults()
-    ]).then(([standingsRes, raceRes, qualiRes]) => {
-      if (standingsRes.source === "fallback" && standingsRes.error) {
-        setError(standingsRes.error);
+    async function loadDrivers() {
+      setIsLoading(true);
+      setError("");
+      try {
+        const year = new Date().getFullYear();
+        const meetings = await getOpenF1Meetings(year);
+        meetings.sort((a, b) => new Date(b.date_start).getTime() - new Date(a.date_start).getTime());
+        
+        let bestSession: OpenF1Session | null = null;
+        
+        for (const meeting of meetings) {
+          const sessions = await getOpenF1Sessions(meeting.meeting_key);
+          if (sessions.length > 0) {
+            bestSession = selectBestCompletedSession(sessions);
+            if (bestSession) break;
+          }
+        }
+
+        if (bestSession) {
+          const d = await getOpenF1Drivers(bestSession.session_key);
+          // Remove duplicates based on driver_number
+          const uniqueDrivers = Array.from(new Map(d.map(item => [item.driver_number, item])).values());
+          setDrivers(uniqueDrivers);
+        } else {
+          setError("No completed session found to load drivers from.");
+        }
+      } catch (err) {
+        setError("Failed to load driver data from OpenF1.");
+        console.error(err);
+      } finally {
+        setIsLoading(false);
       }
-      const data = buildDriverIntelligenceData(standingsRes.data, raceRes.data, qualiRes.data);
-      // Sort by points to ensure correct ranking order
-      data.sort((a, b) => b.points - a.points);
-      setIntelligenceData(data);
-    });
+    }
+    loadDrivers();
   }, []);
-
-  if (!intelligenceData) {
-    return <LoadingState label="Loading driver intelligence..." />;
-  }
-
-  const best = [...intelligenceData].sort((a, b) => b.momentum - a.momentum)[0];
-  const consistent = intelligenceData.find((item) => item.status === "Stable") ?? intelligenceData[1];
-  
-  // Find a driver outside the top 5 with high momentum
-  const darkHorseRankIndex = intelligenceData.findIndex(item => {
-    const isOutsideTop5 = intelligenceData.indexOf(item) >= 5;
-    return isOutsideTop5;
-  });
-  
-  const darkHorsePool = darkHorseRankIndex >= 0 ? intelligenceData.slice(darkHorseRankIndex) : intelligenceData;
-  const darkHorse = [...darkHorsePool].sort((a, b) => b.momentum - a.momentum)[0] ?? intelligenceData[intelligenceData.length - 1];
 
   return (
     <div className="space-y-10 py-10">
       <section>
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-racing">Driver intelligence</p>
-        <h1 className="mt-3 text-4xl font-black text-white sm:text-6xl">Driver Form Tracker</h1>
-        <p className="mt-4 max-w-2xl text-lg text-slate-400">Standings show points. Form shows momentum.</p>
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-racing">Current Grid</p>
+        <h1 className="mt-3 text-4xl font-black text-white sm:text-6xl">Drivers</h1>
+        <p className="mt-4 max-w-2xl text-lg text-slate-400">
+          The 20 drivers competing in the FIA Formula One World Championship.
+        </p>
       </section>
 
-      {error ? <ErrorFallback message={error} /> : null}
+      {isLoading && (
+        <div className="p-12 text-center text-amber-400 font-bold animate-pulse">Loading driver grid...</div>
+      )}
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <StatCard label="Best current momentum" value={best?.fullName ?? "TBC"} detail={`${best?.momentum ?? 0}/100`} accent="green" />
-        <StatCard label="Most consistent contender" value={consistent?.fullName ?? "TBC"} detail={consistent?.status} accent="blue" />
-        <StatCard label="Biggest dark horse" value={darkHorse?.fullName ?? "TBC"} detail={`Rank ${intelligenceData.indexOf(darkHorse) + 1}`} accent="gold" />
-      </section>
+      {error && (
+        <div className="p-12 text-center text-red-400 font-bold">{error}</div>
+      )}
 
-      {/* NEW: Driver Intelligence Hub replacing the grid */}
-      <section className="mt-16">
-        <div className="mb-6 border-b border-white/10 pb-4">
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-racing mb-2">Analytics Engine</p>
-          <h2 className="text-2xl font-black text-white">DRIVER INTELLIGENCE HUB</h2>
-          <p className="text-sm text-slate-400 mt-1">Deep analysis computed from live season data. Click a driver to view advanced metrics.</p>
-          
-          <details className="mt-4 bg-white/5 border border-white/10 p-4 cursor-pointer group">
-            <summary className="text-sm font-bold text-white uppercase tracking-wider outline-none group-hover:text-racing transition">Methodology</summary>
-            <div className="mt-4 text-sm text-slate-300 space-y-3 cursor-text">
-              <p><strong className="text-white">Momentum:</strong> Momentum uses championship position, points share, wins, constructor bonus and recent race form.</p>
-              <p><strong className="text-white">Consistency:</strong> Consistency uses points finishes, DNF penalties and finish-position variance.</p>
-              <p><strong className="text-white">Pressure Scoring:</strong> Pressure uses recovery from outside the top 10, losses from top 5 starts and DNF penalties.</p>
+      {!isLoading && !error && drivers.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {drivers.map(driver => (
+            <div key={driver.driver_number} className="bg-carbon border border-white/10 overflow-hidden group">
+              <div className="h-48 bg-white/5 relative flex justify-center items-end border-b border-white/10 pt-4 overflow-hidden">
+                <div 
+                  className="absolute top-0 left-0 w-full h-1" 
+                  style={{ backgroundColor: `#${driver.team_colour}` }}
+                />
+                {driver.headshot_url ? (
+                  <img 
+                    src={driver.headshot_url} 
+                    alt={driver.full_name} 
+                    className="h-full object-contain drop-shadow-2xl transition-transform duration-500 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="h-full flex items-center justify-center opacity-20">
+                    <span className="text-6xl font-black">{driver.driver_number}</span>
+                  </div>
+                )}
+                
+                <div className="absolute bottom-2 left-3 font-black text-6xl text-white/10 italic tracking-tighter select-none">
+                  {driver.driver_number}
+                </div>
+              </div>
+              
+              <div className="p-5">
+                <h2 className="text-xl font-black text-white uppercase tracking-wider">{driver.full_name}</h2>
+                <div className="flex justify-between items-center mt-2">
+                  <span className="text-sm font-semibold text-slate-400 uppercase">{driver.team_name}</span>
+                  <span className="text-xs font-bold px-2 py-1 bg-white/10 rounded">{driver.name_acronym}</span>
+                </div>
+              </div>
             </div>
-          </details>
+          ))}
         </div>
-        
-        <div className="panel overflow-hidden p-0 bg-slate-950">
-          <div className="flex flex-col">
-            {intelligenceData.map((driver, index) => (
-              <DriverIntelligenceRow key={driver.driverId} data={driver} rank={index + 1} />
-            ))}
-          </div>
-        </div>
-      </section>
+      )}
     </div>
   );
 }
