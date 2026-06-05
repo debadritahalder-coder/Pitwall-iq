@@ -69,9 +69,9 @@ export default function Drivers() {
           <details className="mt-4 bg-white/5 border border-white/10 p-4 cursor-pointer group">
             <summary className="text-sm font-bold text-white uppercase tracking-wider outline-none group-hover:text-racing transition">Methodology</summary>
             <div className="mt-4 text-sm text-slate-300 space-y-3 cursor-text">
-              <p><strong className="text-white">Momentum:</strong> A weighted rolling average of recent race finishes. Higher scores mean better recent form.</p>
-              <p><strong className="text-white">Consistency:</strong> Calculated based on the percentage of points finishes and lack of DNFs.</p>
-              <p><strong className="text-white">Pressure Scoring:</strong> An evaluation combining recent performance dips, teammate point gaps, and historical expectation baselines. Higher pressure implies the driver needs to deliver results soon.</p>
+              <p><strong className="text-white">Momentum:</strong> Momentum uses championship position, points share, wins, constructor bonus and recent race form.</p>
+              <p><strong className="text-white">Consistency:</strong> Consistency uses points finishes, DNF penalties and finish-position variance.</p>
+              <p><strong className="text-white">Pressure Scoring:</strong> Pressure uses recovery from outside the top 10, losses from top 5 starts and DNF penalties.</p>
             </div>
           </details>
         </div>

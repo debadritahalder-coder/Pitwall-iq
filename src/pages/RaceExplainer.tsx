@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
-import { getOpenF1Meetings, getOpenF1Sessions, getOpenF1Laps, getOpenF1PitStops, getOpenF1Stints, getOpenF1RaceControl } from "../lib/api/openF1Client";
-import type { OpenF1Meeting, OpenF1Session, OpenF1Lap, OpenF1PitStop, OpenF1Stint, OpenF1RaceControl as RaceControl } from "../lib/api/apiTypes";
+import { getOpenF1Meetings, getOpenF1Sessions, getOpenF1Laps, getOpenF1PitStops, getOpenF1Stints, getOpenF1RaceControl, getOpenF1Drivers } from "../lib/api/openF1Client";
+import type { OpenF1Meeting, OpenF1Session, OpenF1Lap, OpenF1PitStop, OpenF1Stint, OpenF1RaceControl as RaceControl, OpenF1Driver } from "../lib/api/apiTypes";
 import { analyzePitStops, analyzeStints } from "../lib/raceIntelligence/pitStopAnalyzer";
 import { detectStrategyEvents } from "../lib/raceIntelligence/strategyEventDetector";
 import { generateRaceNarrative } from "../lib/raceIntelligence/raceNarrative";
@@ -20,6 +20,7 @@ export default function RaceExplainer() {
   const [pitStops, setPitStops] = useState<OpenF1PitStop[]>([]);
   const [stints, setStints] = useState<OpenF1Stint[]>([]);
   const [raceControl, setRaceControl] = useState<RaceControl[]>([]);
+  const [drivers, setDrivers] = useState<OpenF1Driver[]>([]);
   
   const [pitAnalysis, setPitAnalysis] = useState<PitStopAnalysis | null>(null);
   const [stintAnalysis, setStintAnalysis] = useState<StintAnalysis | null>(null);
@@ -101,16 +102,18 @@ export default function RaceExplainer() {
         setIsLoading(true);
         setError("");
         
-        const [lapsData, pitStopsData, stintsData, raceControlData] = await Promise.all([
+        const [lapsData, pitStopsData, stintsData, raceControlData, driversData] = await Promise.all([
           getOpenF1Laps(Number(selectedSessionKey)),
           getOpenF1PitStops(Number(selectedSessionKey)),
           getOpenF1Stints(Number(selectedSessionKey)),
           getOpenF1RaceControl(Number(selectedSessionKey)),
+          getOpenF1Drivers(Number(selectedSessionKey)),
         ]);
 
         setPitStops(pitStopsData);
         setStints(stintsData);
         setRaceControl(raceControlData);
+        setDrivers(driversData);
 
         const pitAna = analyzePitStops(pitStopsData);
         const stintAna = analyzeStints(stintsData);
@@ -128,12 +131,52 @@ export default function RaceExplainer() {
         setStintAnalysis(null);
         setStrategyEvents([]);
         setNarrative(null);
+        setDrivers([]);
       } finally {
         setIsLoading(false);
       }
     }
     loadRaceData();
   }, [selectedSessionKey]);
+
+  const driverLookup = useMemo(() => {
+    const lookup: Record<number, OpenF1Driver> = {};
+    drivers.forEach((d) => {
+      if (typeof d.driver_number === "number") {
+        lookup[d.driver_number] = d;
+      }
+    });
+    return lookup;
+  }, [drivers]);
+
+  const getDriverName = (driverNumber: number | undefined | null) => {
+    if (driverNumber === undefined || driverNumber === null) return "Driver";
+    const d = driverLookup[driverNumber];
+    return d ? d.full_name : `Driver ${driverNumber}`;
+  };
+
+  const replaceDriverLabels = (text: string | undefined | null) => {
+    if (!text) return "";
+    return text.replace(/(Driver|Car)\s+(\d+)/g, (match, prefix, numStr) => {
+      const num = parseInt(numStr, 10);
+      const d = driverLookup[num];
+      return d ? d.full_name : match;
+    });
+  };
+
+  const isRaceControlInterruption = (rc: RaceControl) => {
+    const category = (rc.category || "").toLowerCase();
+    const message = (rc.message || "").toLowerCase();
+    return (
+      category.includes("safety") ||
+      category.includes("flag") ||
+      message.includes("safety car") ||
+      message.includes("vsc") ||
+      message.includes("yellow flag") ||
+      message.includes("red flag") ||
+      message.includes("virtual safety car")
+    );
+  };
 
   return (
     <div className="flex flex-col gap-8 pb-12">
@@ -145,13 +188,13 @@ export default function RaceExplainer() {
         <div className="flex items-center gap-4 bg-white/5 px-4 py-2 border border-white/10">
           <span className="text-sm font-semibold uppercase text-slate-400">Mode</span>
           <button
-            onClick={() => setIsTechnical(!isTechnical)}
+            onClick={() => setIsTechnical(false)}
             className={`px-3 py-1 text-sm font-bold transition ${!isTechnical ? "bg-racing text-white" : "text-slate-400 hover:text-white"}`}
           >
             SIMPLE
           </button>
           <button
-            onClick={() => setIsTechnical(!isTechnical)}
+            onClick={() => setIsTechnical(true)}
             className={`px-3 py-1 text-sm font-bold transition ${isTechnical ? "bg-racing text-white" : "text-slate-400 hover:text-white"}`}
           >
             TECHNICAL
@@ -191,7 +234,7 @@ export default function RaceExplainer() {
         <span className="text-sm font-medium text-slate-300">Data Source: OpenF1 API (Historical)</span>
         {isLoading ? (
           <span className="flex items-center gap-2 text-sm font-medium text-amber-400">
-            <div className="h-2 w-2 animate-pulse bg-amber-400 rounded-full" /> Fetching Analysis...
+            <div className="h-2 w-2 animate-pulse bg-amber-400 rounded-full" /> Fetching Historical Data...
           </span>
         ) : error ? (
            <span className="text-sm font-medium text-red-400">{error}</span>
@@ -201,7 +244,7 @@ export default function RaceExplainer() {
           </span>
         ) : (
           <span className="flex items-center gap-2 text-sm font-medium text-green-400">
-            <div className="h-2 w-2 bg-green-400 rounded-full shadow-[0_0_8px_rgba(74,222,128,0.8)]" /> Live Analysis Active
+            <div className="h-2 w-2 bg-green-400 rounded-full shadow-[0_0_8px_rgba(74,222,128,0.8)]" /> Historical Analysis Loaded
           </span>
         )}
       </div>
@@ -212,7 +255,7 @@ export default function RaceExplainer() {
             <div className="bg-gradient-to-br from-carbon/80 to-carbon border border-white/10 p-6">
               <h2 className="mb-4 text-xl font-bold uppercase text-white">Race Summary</h2>
               <p className="text-lg leading-relaxed text-slate-300">
-                {isTechnical ? narrative.technical : narrative.simple}
+                {replaceDriverLabels(isTechnical ? narrative.technical : narrative.simple)}
               </p>
             </div>
 
@@ -222,28 +265,42 @@ export default function RaceExplainer() {
                 <p className="text-slate-400 text-sm">No major strategy anomalies detected based on available data.</p>
               ) : (
                 <div className="space-y-4">
-                  {strategyEvents.map((evt, idx) => (
-                    <div key={idx} className="flex gap-4 border-l-2 border-racing pl-4 py-2">
-                      <div>
-                        <span className="text-xs font-black uppercase text-racing tracking-wider">{evt.type.replace(/_/g, " ")}</span>
-                        <p className="text-sm text-slate-300 mt-1">{evt.description}</p>
+                  {strategyEvents.map((evt, idx) => {
+                    const driver = driverLookup[evt.driver_number];
+                    return (
+                      <div key={idx} className="flex gap-4 border-l-2 border-racing pl-4 py-2">
+                        {driver?.team_colour && (
+                          <div 
+                            className="w-1 self-stretch" 
+                            style={{ backgroundColor: `#${driver.team_colour}` }} 
+                          />
+                        )}
+                        <div>
+                          <span className="text-xs font-black uppercase text-racing tracking-wider">
+                            {evt.type.replace(/_/g, " ")} 
+                            {driver ? ` - ${driver.full_name} (${driver.name_acronym})` : ` - Driver ${evt.driver_number}`}
+                          </span>
+                          <p className="text-sm text-slate-300 mt-1">
+                            {replaceDriverLabels(evt.description)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
             
              <div className="bg-carbon border border-white/10 p-6">
-              <h2 className="mb-4 text-xl font-bold uppercase text-white">Race Control Impact</h2>
-              {raceControl.filter(rc => rc.category === "SafetyCar" || rc.category === "RedFlag").length === 0 ? (
-                 <p className="text-slate-400 text-sm">No major race control interruptions recorded in this session.</p>
+              <h2 className="mb-4 text-xl font-bold uppercase text-white">Race Control Events</h2>
+              {raceControl.filter(isRaceControlInterruption).length === 0 ? (
+                 <p className="text-slate-400 text-sm">No safety car or flag message events detected in this session's logs.</p>
               ) : (
                  <div className="space-y-3">
-                   {raceControl.filter(rc => rc.category === "SafetyCar" || rc.category === "RedFlag").slice(0, 10).map((rc, idx) => (
+                   {raceControl.filter(isRaceControlInterruption).slice(0, 10).map((rc, idx) => (
                       <div key={idx} className="bg-white/5 p-3 flex justify-between items-center">
                         <span className="font-semibold text-white">{rc.message || rc.category}</span>
-                        <span className="text-xs text-slate-400">Lap {rc.lap_number}</span>
+                        <span className="text-xs text-slate-400">{rc.lap_number ? `Lap ${rc.lap_number}` : "Pre-race/Unknown Lap"}</span>
                       </div>
                    ))}
                  </div>
@@ -280,17 +337,49 @@ export default function RaceExplainer() {
                 <div className="space-y-4">
                   <div>
                     <span className="text-xs uppercase text-slate-400 block mb-1">Longest Stint</span>
-                    <div className="bg-white/5 p-3 border border-white/10">
-                      <p className="text-sm text-white">Driver {stintAnalysis.longestStint.driver_number}</p>
-                      <p className="text-xs text-slate-400">{stintAnalysis.longestStint.compound} ({stintAnalysis.longestStint.lap_end - stintAnalysis.longestStint.lap_start} laps)</p>
+                    <div className="bg-white/5 p-3 border border-white/10 flex items-center gap-3">
+                      {driverLookup[stintAnalysis.longestStint.driver_number]?.team_colour && (
+                        <div 
+                          className="w-1.5 h-8 self-stretch" 
+                          style={{ backgroundColor: `#${driverLookup[stintAnalysis.longestStint.driver_number].team_colour}` }} 
+                        />
+                      )}
+                      <div>
+                        <p className="text-sm font-bold text-white">
+                          {getDriverName(stintAnalysis.longestStint.driver_number)}
+                          {driverLookup[stintAnalysis.longestStint.driver_number]?.name_acronym && (
+                            <span className="text-xs text-slate-400 ml-2">({driverLookup[stintAnalysis.longestStint.driver_number].name_acronym})</span>
+                          )}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {driverLookup[stintAnalysis.longestStint.driver_number]?.team_name || "Unknown Team"}
+                        </p>
+                        <p className="text-xs text-slate-400">{stintAnalysis.longestStint.compound} ({stintAnalysis.longestStint.lap_end - stintAnalysis.longestStint.lap_start} laps)</p>
+                      </div>
                     </div>
                   </div>
                   {stintAnalysis.shortestStint && (
                     <div>
                       <span className="text-xs uppercase text-slate-400 block mb-1">Shortest Stint</span>
-                      <div className="bg-white/5 p-3 border border-white/10">
-                        <p className="text-sm text-white">Driver {stintAnalysis.shortestStint.driver_number}</p>
-                        <p className="text-xs text-slate-400">{stintAnalysis.shortestStint.compound} ({stintAnalysis.shortestStint.lap_end - stintAnalysis.shortestStint.lap_start} laps)</p>
+                      <div className="bg-white/5 p-3 border border-white/10 flex items-center gap-3">
+                        {driverLookup[stintAnalysis.shortestStint.driver_number]?.team_colour && (
+                          <div 
+                            className="w-1.5 h-8 self-stretch" 
+                            style={{ backgroundColor: `#${driverLookup[stintAnalysis.shortestStint.driver_number].team_colour}` }} 
+                          />
+                        )}
+                        <div>
+                          <p className="text-sm font-bold text-white">
+                            {getDriverName(stintAnalysis.shortestStint.driver_number)}
+                            {driverLookup[stintAnalysis.shortestStint.driver_number]?.name_acronym && (
+                              <span className="text-xs text-slate-400 ml-2">({driverLookup[stintAnalysis.shortestStint.driver_number].name_acronym})</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {driverLookup[stintAnalysis.shortestStint.driver_number]?.team_name || "Unknown Team"}
+                          </p>
+                          <p className="text-xs text-slate-400">{stintAnalysis.shortestStint.compound} ({stintAnalysis.shortestStint.lap_end - stintAnalysis.shortestStint.lap_start} laps)</p>
+                        </div>
                       </div>
                     </div>
                   )}

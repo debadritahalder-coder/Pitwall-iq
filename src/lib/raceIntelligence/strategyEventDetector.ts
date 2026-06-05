@@ -10,6 +10,14 @@ export function detectStrategyEvents(
 
   if (!pitStops || pitStops.length === 0) return events;
 
+  const validPitStops = pitStops.filter((stop): stop is OpenF1PitStop & { driver_number: number; lap_number: number } => 
+    typeof stop.driver_number === 'number' && typeof stop.lap_number === 'number'
+  );
+  
+  const validLaps = laps.filter((lap): lap is OpenF1Lap & { driver_number: number; lap_number: number; lap_duration: number } => 
+    typeof lap.driver_number === 'number' && typeof lap.lap_number === 'number' && typeof lap.lap_duration === 'number'
+  );
+
   // 1. Safety Car / VSC Pit Opportunities
   // Find SC/VSC periods
   const scEvents = raceControl.filter((rc) => 
@@ -20,8 +28,8 @@ export function detectStrategyEvents(
 
   scEvents.forEach((sc) => {
     // If a pit stop happened within 2 laps of this event
-    pitStops.forEach((stop) => {
-      if (stop.lap_number >= sc.lap_number && stop.lap_number <= sc.lap_number + 2) {
+    validPitStops.forEach((stop) => {
+      if (typeof sc.lap_number === 'number' && stop.lap_number >= sc.lap_number && stop.lap_number <= sc.lap_number + 2) {
         events.push({
           type: "safety_car_pit",
           driver_number: stop.driver_number,
@@ -35,13 +43,13 @@ export function detectStrategyEvents(
 
   // 2. Traffic Risk (very simple heuristic: slow lap immediately after pit out)
   // Group laps by driver
-  const driverLaps: Record<number, OpenF1Lap[]> = {};
-  laps.forEach(lap => {
+  const driverLaps: Record<number, typeof validLaps> = {};
+  validLaps.forEach(lap => {
     if (!driverLaps[lap.driver_number]) driverLaps[lap.driver_number] = [];
     driverLaps[lap.driver_number].push(lap);
   });
 
-  pitStops.forEach(stop => {
+  validPitStops.forEach(stop => {
     const dLaps = driverLaps[stop.driver_number] || [];
     const outLap = dLaps.find(l => l.lap_number === stop.lap_number + 1);
     const nextLap = dLaps.find(l => l.lap_number === stop.lap_number + 2);
@@ -67,7 +75,7 @@ export function detectStrategyEvents(
 
   // 3. Possible Undercut Candidates
   // Pit stop -> next laps are significantly faster than previous laps
-  pitStops.forEach(stop => {
+  validPitStops.forEach(stop => {
     const dLaps = driverLaps[stop.driver_number] || [];
     const beforeLaps = dLaps.filter(l => l.lap_number >= stop.lap_number - 4 && l.lap_number < stop.lap_number);
     const afterLaps = dLaps.filter(l => l.lap_number > stop.lap_number + 1 && l.lap_number <= stop.lap_number + 4);

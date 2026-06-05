@@ -57,8 +57,7 @@ export async function getOpenF1Laps(session_key: number, driver_number?: number)
 
 export async function getOpenF1PitStops(session_key: number, driver_number?: number): Promise<OpenF1PitStop[]> {
   const query = buildQuery({ session_key, driver_number });
-  return fetchOpenF1<OpenF1PitStop[]>(`/pit?${query.replace("?", "")}`); 
-  // Note: OpenF1 uses /pit for pit stops, wait let's use /pit? or /pitstops? It's typically /pit or /pit_stops in some versions. Let's use /pit 
+  return fetchOpenF1<OpenF1PitStop[]>(`/pit${query}`);
 }
 
 export async function getOpenF1Stints(session_key: number, driver_number?: number): Promise<OpenF1Stint[]> {

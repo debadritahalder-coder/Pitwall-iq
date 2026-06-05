@@ -31,7 +31,7 @@ Formula 1 is a highly complex, data-driven sport. New and casual fans often stru
 - **Jolpica/Ergast API (Compatible):** Used for schedules, standings, latest results, and qualifying data.
 - **OpenF1 API:** Used for historical race intelligence, including telemetry, pit stops, and race control data.
 
-*Note: No API keys are required to run this project.*
+*Note: No API keys are required to run this project. OpenF1 historical data is used without authentication. Live OpenF1 data is not used in this version.*
 
 ## Architecture
 - `src/lib/api/jolpicaClient.ts`: Modular client for Ergast-compatible endpoints.

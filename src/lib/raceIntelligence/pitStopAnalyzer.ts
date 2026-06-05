@@ -13,9 +13,11 @@ export function analyzePitStops(stops: OpenF1PitStop[]): PitStopAnalysis {
     };
   }
 
-  // Filter out any invalid laps
-  const validStops = stops.filter(s => typeof s.lap_number === 'number' && s.lap_number > 0);
-  
+  // Filter out any invalid laps or missing driver numbers
+  const validStops = stops.filter((s): s is OpenF1PitStop & { driver_number: number; lap_number: number } => 
+    typeof s.lap_number === 'number' && s.lap_number > 0 && typeof s.driver_number === 'number'
+  );
+
   if (validStops.length === 0) {
     return {
       earliestStopLap: null,
