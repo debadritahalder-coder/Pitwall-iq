@@ -1,61 +1,46 @@
-# PitWall IQ
+# PitWall IQ 🏎️
 
-PitWall IQ is an independent Formula 1 race intelligence website built to help fans understand race weekends through real standings data, driver form indicators, basic strategy simulation, beginner-friendly explanations, and iconic F1 history moments.
-
-## The Problem
-Formula 1 is a highly complex, data-driven sport. New and casual fans often struggle to understand *why* certain decisions are made during a race, especially regarding pit stops and tyre strategies. While the broadcast provides live commentary, it can be overwhelming, and post-race analysis often requires deep technical knowledge.
-
-## Competitor Gap
-- **MultiViewer:** Powerful for hardcore live viewers.
-- **F1 Tempo:** Strong for deep telemetry exploration.
-- **Armchair Strategist:** Overlaps with strategy dashboards.
-- **Official F1:** Owns live media and broadcast rights.
-
-**PitWall IQ** wins by being beginner-first: providing real data plus clear, deterministic strategy explanations.
+PitWall IQ is a modern, portfolio-grade Formula 1 race intelligence and strategy explainer app. It transforms raw telemetry and race data into beginner-friendly insights, making complex F1 strategy accessible to casual fans.
 
 ## Features
-- **Dashboard:** Real-time driver and constructor standings, race schedules, and latest results.
-- **Driver Intelligence Hub:** Analyzes driver momentum, consistency, and pressure based on recent performance.
-- **Strategy Lab:** A rule-based simulator to test advanced track position, tyre, and weather assumptions.
-- **Race Explainer:** Deterministic analysis of historical races, explaining strategy events like undercuts and traffic risks using OpenF1 data.
-- **History Vault & Glossary:** Learn iconic moments and fundamental F1 terms.
+
+- **Race Explainer:** Understand why drivers pitted, who gained an undercut, and the impact of Safety Cars on race pace using historical OpenF1 data.
+- **Strategy Lab:** A sandbox to pick any two drivers from any session and compare their average lap pace head-to-head.
+- **Driver Intelligence:** A visual grid of the current season's drivers, with live headshots and team colors.
+- **Learn Strategy:** An educational hub covering core strategy terms, basic F1 rules, and the upcoming 2026 regulations.
 
 ## Tech Stack
-- React
-- TypeScript
-- Vite
-- Tailwind CSS
-- React Router
 
-## APIs Used
-- **Jolpica/Ergast API (Compatible):** Used for schedules, standings, latest results, and qualifying data.
-- **OpenF1 API:** Used for historical race intelligence, including telemetry, pit stops, and race control data.
+- **React & TypeScript:** For a robust, strongly-typed front-end.
+- **Vite:** Next-generation frontend tooling for blazing fast builds.
+- **Tailwind CSS:** For sleek, modern, and responsive UI styling.
+- **OpenF1 API:** Free, keyless historical telemetry and race data.
+- **Jolpica/Ergast API:** For driver and constructor standings.
 
-*Note: No API keys are required to run this project. OpenF1 historical data is used without authentication. Live OpenF1 data is not used in this version.*
+## Getting Started
 
-## Architecture
-- `src/lib/api/jolpicaClient.ts`: Modular client for Ergast-compatible endpoints.
-- `src/lib/api/openF1Client.ts`: Modular client for OpenF1 historical endpoints, with built-in deduplication and caching.
-- `src/lib/raceIntelligence/`: Deterministic rules engine to calculate pit stop analytics, strategy events, and generate race narratives.
-- `src/lib/f1Api.ts`: Compatibility barrel file exporting Jolpica functions.
-
-## How to run locally
-1. Clone the repository.
-2. Ensure you have Node.js installed.
-3. Install dependencies:
+1. **Install dependencies:**
    ```bash
    npm install
    ```
-4. Run the development server:
+
+2. **Run the development server:**
    ```bash
    npm run dev
    ```
-5. Open `http://localhost:5173` in your browser.
 
-## Roadmap
-- [ ] Add more comprehensive strategy heuristics (e.g., tyre degradation models).
-- [ ] Incorporate visual charts for stint timelines.
-- [ ] Expand the History Vault.
+3. **Build for production:**
+   ```bash
+   npm run build
+   ```
 
-## Disclaimer
-> Independent project. Not affiliated with Formula 1, FIA, Formula One Management, Formula One Licensing, teams, drivers, or broadcasters. Built for learning and portfolio purposes.
+## Project Structure
+
+- `src/components/race`: Modular UI components for the Race Explainer.
+- `src/lib/api`: API clients for OpenF1.
+- `src/lib/raceIntelligence`: Deterministic heuristic engines that parse lap and pit stop data to detect undercuts, overcuts, and traffic risks.
+- `src/pages`: Main application views (Dashboard, Race Explainer, Strategy Lab, Drivers, Learn).
+
+## Development Philosophy
+
+PitWall IQ is not a generic F1 stats dashboard. It explains race strategy using real race data, with a focus on beginner-first explanations and cautious, data-driven heuristics.

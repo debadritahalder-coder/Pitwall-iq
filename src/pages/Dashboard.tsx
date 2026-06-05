@@ -106,11 +106,14 @@ export default function Dashboard() {
             Track real standings, study driver form, compare strategy risks, and understand the race before lights out.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/drivers" className="bg-racing px-5 py-3 text-sm font-black text-white shadow-glow">
-              View Drivers
+            <Link to="/race-explainer" className="bg-racing px-5 py-3 text-sm font-black text-white shadow-glow hover:bg-red-700 transition">
+              Open Race Explainer
             </Link>
-            <Link to="/strategy-lab" className="border border-white/15 bg-white/5 px-5 py-3 text-sm font-black text-white">
-              Open Strategy Lab
+            <Link to="/strategy-lab" className="border border-white/15 bg-white/5 px-5 py-3 text-sm font-black text-white hover:bg-white/10 transition">
+              Strategy Lab
+            </Link>
+            <Link to="/learn" className="border border-white/15 bg-white/5 px-5 py-3 text-sm font-black text-white hover:bg-white/10 transition">
+              Learn Strategy
             </Link>
           </div>
         </div>
