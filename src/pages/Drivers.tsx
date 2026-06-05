@@ -65,6 +65,15 @@ export default function Drivers() {
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-racing mb-2">Analytics Engine</p>
           <h2 className="text-2xl font-black text-white">DRIVER INTELLIGENCE HUB</h2>
           <p className="text-sm text-slate-400 mt-1">Deep analysis computed from live season data. Click a driver to view advanced metrics.</p>
+          
+          <details className="mt-4 bg-white/5 border border-white/10 p-4 cursor-pointer group">
+            <summary className="text-sm font-bold text-white uppercase tracking-wider outline-none group-hover:text-racing transition">Methodology</summary>
+            <div className="mt-4 text-sm text-slate-300 space-y-3 cursor-text">
+              <p><strong className="text-white">Momentum:</strong> A weighted rolling average of recent race finishes. Higher scores mean better recent form.</p>
+              <p><strong className="text-white">Consistency:</strong> Calculated based on the percentage of points finishes and lack of DNFs.</p>
+              <p><strong className="text-white">Pressure Scoring:</strong> An evaluation combining recent performance dips, teammate point gaps, and historical expectation baselines. Higher pressure implies the driver needs to deliver results soon.</p>
+            </div>
+          </details>
         </div>
         
         <div className="panel overflow-hidden p-0 bg-slate-950">

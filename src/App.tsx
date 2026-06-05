@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import Drivers from "./pages/Drivers";
 import Learn from "./pages/Learn";
 import StrategyLab from "./pages/StrategyLab";
+import RaceExplainer from "./pages/RaceExplainer";
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/drivers" element={<Drivers />} />
           <Route path="/strategy-lab" element={<StrategyLab />} />
           <Route path="/learn" element={<Learn />} />
+          <Route path="/race-explainer" element={<RaceExplainer />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

@@ -59,7 +59,8 @@ export default function StrategyLab() {
         <p className="text-xs font-bold uppercase tracking-[0.22em] text-racing">Rule-based simulator</p>
         <h1 className="mt-3 text-4xl font-black text-white sm:text-6xl">Strategy Lab</h1>
         <p className="mt-4 max-w-2xl text-lg text-slate-400">
-          Build a scenario and test advanced track position, tyre, and weather assumptions against our v1.5 rule engine.
+          Build a scenario and test advanced track position, tyre, and weather assumptions against our v1.5 rule engine. 
+          <span className="block mt-2 text-sm italic">Note: This is a simplified model, not live team strategy. The rule-based simulator uses deterministic heuristics to estimate tyre windows and risks.</span>
         </p>
       </section>
 
@@ -171,6 +172,14 @@ export default function StrategyLab() {
                   <p className="text-base leading-7 text-slate-300 border-l-2 border-racing pl-4">{result.pitwallVerdict}</p>
                 </div>
 
+                <div className="mt-6 bg-white/5 p-4 border border-white/10">
+                  <h4 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500 mb-2">Why this recommendation happened</h4>
+                  <p className="text-sm text-slate-400">
+                    The simulator evaluated the {form.weather.toLowerCase()} conditions and {form.aggressionLevel.toLowerCase()} aggression level. 
+                    With a {form.safetyCarChance.toLowerCase()} chance of safety car, the engine determined that a {result.recommendedStrategy.riskLevel.toLowerCase()} approach focusing on {result.recommendedStrategy.projectedOutcome.toLowerCase()} was optimal.
+                  </p>
+                </div>
+
                 {/* Stint Timeline */}
                 <div className="mt-8">
                   <h4 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500 mb-4">Stint Timeline</h4>
@@ -265,10 +274,17 @@ export default function StrategyLab() {
               </div>
 
               {/* Engine Footer */}
-              <div className="text-right pb-4">
-                <span className="inline-block px-3 py-1 bg-carbon text-[10px] font-mono text-slate-500 border border-white/5">
-                  Rule-Based Engine v1.5 | ML-ready architecture
-                </span>
+              <div className="flex flex-col gap-3 mt-6 border-t border-white/10 pt-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Circuit Profile: {form.circuit}</span>
+                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Track Position Priority: {form.trackPositionPriority}</span>
+                </div>
+                <div className="flex justify-between items-center border-t border-white/5 pt-2">
+                  <span className="text-[10px] text-slate-500 italic">Disclaimer: This is a simplified model, not live team strategy.</span>
+                  <span className="inline-block px-3 py-1 bg-carbon text-[10px] font-mono text-slate-500 border border-white/5">
+                    Rule-Based Engine v1.5 | ML-ready architecture
+                  </span>
+                </div>
               </div>
             </div>
           ) : (

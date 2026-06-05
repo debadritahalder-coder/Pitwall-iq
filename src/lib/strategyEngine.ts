@@ -11,13 +11,13 @@ export type CircuitProfile = {
 };
 
 const circuitProfiles: Record<string, CircuitProfile> = {
-  "Monaco": { overtakingDifficulty: "very high", tyreDegradation: "low", safetyCarChance: "high", pitLoss: "high", weatherVolatility: "low", strategyNote: "Track position is critical. Undercut is powerful but traffic ruins it." },
-  "Monza": { overtakingDifficulty: "medium", tyreDegradation: "medium", safetyCarChance: "medium", pitLoss: "medium", weatherVolatility: "low", strategyNote: "Straight-line pace and undercut matter. One-stop is standard." },
-  "Silverstone": { overtakingDifficulty: "medium", tyreDegradation: "high", safetyCarChance: "medium", pitLoss: "medium", weatherVolatility: "medium", strategyNote: "High speed corners punish front left tyre. Two-stop often viable." },
-  "Singapore": { overtakingDifficulty: "high", tyreDegradation: "medium", safetyCarChance: "high", pitLoss: "high", weatherVolatility: "medium", strategyNote: "Safety cars routinely reshape the race. Track position is king." },
-  "Spa": { overtakingDifficulty: "medium", tyreDegradation: "medium", safetyCarChance: "medium", pitLoss: "medium", weatherVolatility: "high", strategyNote: "Weather risk matters. Long lap means pitting for wrong tyre is disastrous." },
-  "Bahrain": { overtakingDifficulty: "medium", tyreDegradation: "high", safetyCarChance: "medium", pitLoss: "medium", weatherVolatility: "low", strategyNote: "Rear tyre degradation is severe. Undercut is extremely powerful." },
-  "Abu Dhabi": { overtakingDifficulty: "medium", tyreDegradation: "medium", safetyCarChance: "medium", pitLoss: "medium", weatherVolatility: "low", strategyNote: "Pit timing and track position matter. Hard to pass in sector 3." }
+  "Monaco": { name: "Monaco", overtakingDifficulty: "very high", tyreDegradation: "low", safetyCarChance: "high", pitLoss: "high", weatherVolatility: "low", strategyNote: "Track position is critical. Undercut is powerful but traffic ruins it." },
+  "Monza": { name: "Monza", overtakingDifficulty: "medium", tyreDegradation: "medium", safetyCarChance: "medium", pitLoss: "medium", weatherVolatility: "low", strategyNote: "Straight-line pace and undercut matter. One-stop is standard." },
+  "Silverstone": { name: "Silverstone", overtakingDifficulty: "medium", tyreDegradation: "high", safetyCarChance: "medium", pitLoss: "medium", weatherVolatility: "medium", strategyNote: "High speed corners punish front left tyre. Two-stop often viable." },
+  "Singapore": { name: "Singapore", overtakingDifficulty: "high", tyreDegradation: "medium", safetyCarChance: "high", pitLoss: "high", weatherVolatility: "medium", strategyNote: "Safety cars routinely reshape the race. Track position is king." },
+  "Spa": { name: "Spa", overtakingDifficulty: "medium", tyreDegradation: "medium", safetyCarChance: "medium", pitLoss: "medium", weatherVolatility: "high", strategyNote: "Weather risk matters. Long lap means pitting for wrong tyre is disastrous." },
+  "Bahrain": { name: "Bahrain", overtakingDifficulty: "medium", tyreDegradation: "high", safetyCarChance: "medium", pitLoss: "medium", weatherVolatility: "low", strategyNote: "Rear tyre degradation is severe. Undercut is extremely powerful." },
+  "Abu Dhabi": { name: "Abu Dhabi", overtakingDifficulty: "medium", tyreDegradation: "medium", safetyCarChance: "medium", pitLoss: "medium", weatherVolatility: "low", strategyNote: "Pit timing and track position matter. Hard to pass in sector 3." }
 };
 
 export function getCircuitProfile(name: string): CircuitProfile {
