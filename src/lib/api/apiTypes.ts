@@ -96,7 +96,7 @@ export interface OpenF1RaceControl {
   flag?: string;
   scope?: string;
   sector?: number;
-  lap_number: number;
+  lap_number?: number;
 }
 
 export interface OpenF1Weather {

@@ -264,9 +264,13 @@ export default function RaceExplainer() {
           </span>
         ) : narrative && narrative.dataAvailable ? (
           <span className="flex items-center gap-2 text-sm font-medium text-green-400">
-            <div className="h-2 w-2 bg-green-400 rounded-full shadow-[0_0_8px_rgba(74,222,128,0.8)]" /> Race Analysis Complete
+            <div className="h-2 w-2 bg-green-400 rounded-full shadow-[0_0_8px_rgba(74,222,128,0.8)]" /> Historical Analysis Loaded
           </span>
-        ) : null}
+        ) : (
+          <span className="flex items-center gap-2 text-sm font-medium text-slate-400">
+            <div className="h-2 w-2 bg-slate-400 rounded-full" /> No analysis loaded
+          </span>
+        )}
       </div>
 
       {!isLoading && narrative && narrative.dataAvailable && (
