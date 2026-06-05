@@ -60,13 +60,15 @@ export default function StandingsTable({ mode, driverData, constructorData }: St
                   style={{ backgroundColor: driver.teamColor }}
                 />
                 {driver.headshotSmall && (
-                  <img
-                    src={driver.headshotSmall}
-                    alt={driver.driverName}
-                    className="w-8 h-8 rounded-full object-cover bg-white/10 flex-shrink-0 hidden sm:block"
-                    loading="lazy"
-                    crossOrigin="anonymous"
-                  />
+                  <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 hidden sm:block bg-white/10">
+                    <img
+                      src={driver.headshotSmall}
+                      alt={driver.driverName}
+                      className="w-full h-full object-cover object-top scale-125 origin-top"
+                      loading="lazy"
+                      crossOrigin="anonymous"
+                    />
+                  </div>
                 )}
                 <div className="min-w-0">
                   <span className="text-white text-sm">

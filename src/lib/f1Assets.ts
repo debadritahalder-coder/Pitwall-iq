@@ -310,7 +310,13 @@ export function findDriverAsset(driverName: string, code?: string): F1DriverAsse
 }
 
 export function findTeamAsset(teamName: string): F1TeamAsset | undefined {
-  const lower = teamName.toLowerCase();
+  let lower = teamName.toLowerCase();
+  
+  // Handle specific aliases
+  if (lower.includes("rb f1 team") || lower === "rb" || lower === "vcarb") {
+    lower = "racing bulls";
+  }
+  
   return F1_TEAM_ASSETS.find(t => {
     if (t.name.toLowerCase() === lower) return true;
     if (lower.includes(t.name.toLowerCase()) || t.name.toLowerCase().includes(lower)) return true;

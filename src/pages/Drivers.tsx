@@ -125,13 +125,15 @@ export default function Drivers() {
                 <div className="flex-1 flex divide-x divide-white/8">
                   {teamDrivers.map(d => (
                     <div key={d.driverSlug} className="flex-1 flex items-center gap-3 p-4">
-                      <img
-                        src={d.headshotSmall}
-                        alt={d.firstName + " " + d.lastName}
-                        className="w-10 h-10 rounded-full object-cover bg-white/10"
-                        loading="lazy"
-                        crossOrigin="anonymous"
-                      />
+                      <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-white/10">
+                        <img
+                          src={d.headshotSmall}
+                          alt={d.firstName + " " + d.lastName}
+                          className="w-full h-full object-cover object-top scale-125 origin-top"
+                          loading="lazy"
+                          crossOrigin="anonymous"
+                        />
+                      </div>
                       <div>
                         <p className="text-white text-sm font-bold">
                           {d.firstName} <span className="font-black uppercase">{d.lastName}</span>
