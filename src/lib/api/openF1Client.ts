@@ -9,6 +9,8 @@ import type {
   OpenF1Stint,
   OpenF1RaceControl,
   OpenF1Weather,
+  OpenF1Position,
+  OpenF1Interval,
 } from "./apiTypes";
 
 const BASE_URL = (import.meta as any).env.VITE_OPENF1_BASE_URL || "https://api.openf1.org/v1";
@@ -73,4 +75,32 @@ export async function getOpenF1RaceControl(session_key: number): Promise<OpenF1R
 export async function getOpenF1Weather(session_key: number): Promise<OpenF1Weather[]> {
   const query = buildQuery({ session_key });
   return fetchOpenF1<OpenF1Weather[]>(`/weather${query}`);
+}
+
+export async function getOpenF1Position(session_key: number, driver_number?: number): Promise<OpenF1Position[]> {
+  const query = buildQuery({ session_key, driver_number });
+  return fetchOpenF1<OpenF1Position[]>(`/position${query}`);
+}
+
+export async function getOpenF1Intervals(session_key: number, driver_number?: number, date_start?: string, date_end?: string): Promise<OpenF1Interval[]> {
+  // If we have date window, construct custom query using OpenF1 <= and >= filters
+  // But buildQuery currently just does equality. We'll manually construct for date.
+  const params: Record<string, any> = { session_key, driver_number };
+  const queryParts: string[] = [];
+  
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null) {
+      queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+    }
+  }
+  
+  if (date_start) {
+    queryParts.push(`date>=${encodeURIComponent(date_start)}`);
+  }
+  if (date_end) {
+    queryParts.push(`date<=${encodeURIComponent(date_end)}`);
+  }
+  
+  const query = queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
+  return fetchOpenF1<OpenF1Interval[]>(`/intervals${query}`);
 }

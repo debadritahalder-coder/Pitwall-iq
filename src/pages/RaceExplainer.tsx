@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { getOpenF1Meetings, getOpenF1Sessions, getOpenF1Laps, getOpenF1PitStops, getOpenF1Stints, getOpenF1RaceControl, getOpenF1Drivers, getOpenF1Weather } from "../lib/api/openF1Client";
+import { getOpenF1Meetings, getOpenF1Sessions, getOpenF1Laps, getOpenF1PitStops, getOpenF1Stints, getOpenF1RaceControl, getOpenF1Drivers, getOpenF1Weather, getOpenF1Position } from "../lib/api/openF1Client";
 import type { OpenF1Meeting, OpenF1Session, OpenF1Lap, OpenF1PitStop, OpenF1Stint, OpenF1RaceControl as RaceControl, OpenF1Driver } from "../lib/api/apiTypes";
 import { analyzePitStops, analyzeStints } from "../lib/raceIntelligence/pitStopAnalyzer";
 import { detectStrategyEvents } from "../lib/raceIntelligence/strategyEventDetector";
@@ -48,6 +48,7 @@ export default function RaceExplainer() {
   const [raceControl, setRaceControl] = useState<RaceControl[]>([]);
   const [drivers, setDrivers] = useState<OpenF1Driver[]>([]);
   const [weather, setWeather] = useState<any[]>([]);
+  const [positions, setPositions] = useState<any[]>([]);
   const [lapsCount, setLapsCount] = useState(0);
   
   const [pitAnalysis, setPitAnalysis] = useState<PitStopAnalysis | null>(null);
@@ -128,13 +129,14 @@ export default function RaceExplainer() {
         setIsLoading(true);
         setError("");
         
-        const [lapsData, pitStopsData, stintsData, raceControlData, driversData, weatherData] = await Promise.all([
+        const [lapsData, pitStopsData, stintsData, raceControlData, driversData, weatherData, positionData] = await Promise.all([
           getOpenF1Laps(Number(selectedSessionKey)),
           getOpenF1PitStops(Number(selectedSessionKey)),
           getOpenF1Stints(Number(selectedSessionKey)),
           getOpenF1RaceControl(Number(selectedSessionKey)),
           getOpenF1Drivers(Number(selectedSessionKey)),
           getOpenF1Weather(Number(selectedSessionKey)),
+          getOpenF1Position(Number(selectedSessionKey)),
         ]);
 
         setPitStops(pitStopsData);
@@ -142,11 +144,12 @@ export default function RaceExplainer() {
         setRaceControl(raceControlData);
         setDrivers(driversData);
         setWeather(weatherData);
+        setPositions(positionData);
         setLapsCount(lapsData.length);
 
         const pitAna = analyzePitStops(pitStopsData);
         const stintAna = analyzeStints(stintsData);
-        const events = detectStrategyEvents(pitStopsData, raceControlData, lapsData);
+        const events = detectStrategyEvents(pitStopsData, raceControlData, lapsData, positionData);
         const narr = generateRaceNarrative(pitAna, stintAna, events);
 
         setPitAnalysis(pitAna);

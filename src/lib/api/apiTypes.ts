@@ -111,3 +111,20 @@ export interface OpenF1Weather {
   wind_direction: number;
   wind_speed: number;
 }
+
+export interface OpenF1Position {
+  meeting_key: number;
+  session_key: number;
+  driver_number: number;
+  date: string;
+  position: number;
+}
+
+export interface OpenF1Interval {
+  meeting_key: number;
+  session_key: number;
+  driver_number: number;
+  date: string;
+  interval: number;
+  gap_to_leader: number;
+}

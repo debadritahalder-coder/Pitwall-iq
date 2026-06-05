@@ -1,10 +1,11 @@
-import type { OpenF1PitStop, OpenF1RaceControl, OpenF1Lap } from "../api/apiTypes";
+import type { OpenF1PitStop, OpenF1RaceControl, OpenF1Lap, OpenF1Position } from "../api/apiTypes";
 import type { StrategyEvent } from "./types";
 
 export function detectStrategyEvents(
   pitStops: OpenF1PitStop[],
   raceControl: OpenF1RaceControl[],
-  laps: OpenF1Lap[]
+  laps: OpenF1Lap[],
+  positions: OpenF1Position[] = []
 ): StrategyEvent[] {
   const events: StrategyEvent[] = [];
 
@@ -119,14 +120,58 @@ export function detectStrategyEvents(
       
       // If Driver A improved pace after pitting
       if (avgBeforeA && avgAfterA && avgAfterA < avgBeforeA - 1.0) {
+        let gainedPosition = false;
         const driversB = laterStops.map(s => `Driver ${s.driver_number}`).join(", ");
-        events.push({
-          type: "possible_undercut",
-          driver_number: stopA.driver_number,
-          lap: stopA.lap_number,
-          description: `Driver ${stopA.driver_number} pitted early on lap ${stopA.lap_number} and improved pace, suggesting a possible undercut attempt against ${driversB} who pitted shortly after.`,
-          confidence: "high"
-        });
+        
+        // If positions are available, verify if A gained on any of B
+        if (positions && positions.length > 0) {
+          // Find A's pos before stop
+          const posABefore = positions.find(p => p.driver_number === stopA.driver_number && new Date(p.date).getTime() < new Date(dLapsA.find(l => l.lap_number === stopA.lap_number)?.date_start || "").getTime())?.position;
+          
+          laterStops.forEach(stopB => {
+            const dLapsB = driverLaps[stopB.driver_number] || [];
+            // Find B's pos before stop
+            const posBBefore = positions.find(p => p.driver_number === stopB.driver_number && new Date(p.date).getTime() < new Date(dLapsB.find(l => l.lap_number === stopB.lap_number)?.date_start || "").getTime())?.position;
+            // Find both pos after B's stop
+            const posAAfter = positions.find(p => p.driver_number === stopA.driver_number && new Date(p.date).getTime() > new Date(dLapsB.find(l => l.lap_number === stopB.lap_number)?.date_start || "").getTime())?.position;
+            const posBAfter = positions.find(p => p.driver_number === stopB.driver_number && new Date(p.date).getTime() > new Date(dLapsB.find(l => l.lap_number === stopB.lap_number)?.date_start || "").getTime())?.position;
+            
+            // If B was ahead of A before A's stop, and A is ahead of B after B's stop
+            if (posABefore && posBBefore && posAAfter && posBAfter) {
+              if (posBBefore < posABefore && posAAfter < posBAfter) {
+                gainedPosition = true;
+              }
+            }
+          });
+          
+          if (gainedPosition) {
+             events.push({
+               type: "possible_undercut",
+               driver_number: stopA.driver_number,
+               lap: stopA.lap_number,
+               description: `Driver ${stopA.driver_number} successfully undercut ${driversB} by pitting early on lap ${stopA.lap_number} and gaining track position.`,
+               confidence: "high"
+             });
+          } else {
+             // We have position data but no position was gained (or we couldn't confidently parse it due to timestamps)
+             events.push({
+               type: "possible_undercut",
+               driver_number: stopA.driver_number,
+               lap: stopA.lap_number,
+               description: `Driver ${stopA.driver_number} pitted early on lap ${stopA.lap_number} and improved pace, attempting an undercut against ${driversB}, but did not immediately gain position.`,
+               confidence: "medium"
+             });
+          }
+        } else {
+          // No position data available, just detect pit timing
+          events.push({
+            type: "possible_undercut",
+            driver_number: stopA.driver_number,
+            lap: stopA.lap_number,
+            description: `Driver ${stopA.driver_number} pitted early on lap ${stopA.lap_number} and improved pace, suggesting a possible undercut attempt against ${driversB} who pitted shortly after.`,
+            confidence: "medium"
+          });
+        }
       }
     }
   });
