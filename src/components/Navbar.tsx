@@ -1,38 +1,49 @@
 import { NavLink } from "react-router-dom";
+import { NewFanToggle } from "./common/NewFanToggle";
 
 const links = [
   { to: "/", label: "Dashboard" },
   { to: "/drivers", label: "Drivers" },
   { to: "/strategy-lab", label: "Strategy Lab" },
+  { to: "/race-explainer", label: "Race Explainer" },
   { to: "/learn", label: "Learn" },
 ];
 
 export default function Navbar() {
   return (
-    <header className="sticky top-0 z-30 border-b border-white/10 bg-carbon/82 backdrop-blur-xl">
-      <nav className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-        <NavLink to="/" className="flex items-center gap-3">
-          <span className="grid h-9 w-9 place-items-center border border-racing/50 bg-racing/15 text-sm font-black text-white shadow-glow">
-            IQ
+    <header className="sticky top-0 z-30 bg-[#15151e] border-b border-white/8">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-0 sm:px-6 lg:px-8">
+        {/* Logo */}
+        <NavLink to="/" className="flex items-center gap-3 py-3">
+          <div className="relative">
+            <span className="grid h-9 w-9 place-items-center bg-racing text-sm font-black text-white">
+              IQ
+            </span>
+          </div>
+          <span className="text-[15px] font-black uppercase tracking-[0.15em] text-white hidden sm:block">
+            PitWall IQ
           </span>
-          <span className="text-lg font-black uppercase tracking-[0.18em] text-white">PitWall IQ</span>
         </NavLink>
-        <div className="flex flex-wrap gap-2">
+
+        {/* Nav links */}
+        <div className="flex items-center gap-0">
           {links.map((link) => (
             <NavLink
               key={link.to}
               to={link.to}
+              end={link.to === "/"}
               className={({ isActive }) =>
-                `border px-4 py-2 text-sm font-semibold transition ${
+                `relative px-3 lg:px-4 py-4 text-[12px] lg:text-[13px] font-bold uppercase tracking-wider transition-colors ${
                   isActive
-                    ? "border-racing bg-racing text-white shadow-glow"
-                    : "border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/25 hover:text-white"
+                    ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[3px] after:bg-racing after:rounded-t"
+                    : "text-white/50 hover:text-white"
                 }`
               }
             >
               {link.label}
             </NavLink>
           ))}
+          <NewFanToggle />
         </div>
       </nav>
     </header>
