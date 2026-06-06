@@ -2,6 +2,38 @@ import { useEffect, useState, useMemo } from "react";
 import { getOpenF1Meetings, getOpenF1Sessions, getOpenF1Drivers, getOpenF1Laps } from "../lib/api/openF1Client";
 import type { OpenF1Meeting, OpenF1Session, OpenF1Driver, OpenF1Lap } from "../lib/api/apiTypes";
 import { SessionPicker } from "../components/race/SessionPicker";
+import { useNewFanMode } from "../contexts/NewFanContext";
+
+const beginnerPresets = [
+  {
+    id: "basic",
+    name: "My First Strategy",
+    whenWorks: "When the race has no crashes and normal tyre wear.",
+    whenFails: "If an unexpected Safety Car gives rivals a free pit stop.",
+    watchFor: "Watch who stops first and whether they come out in traffic."
+  },
+  {
+    id: "undercut",
+    name: "Aggressive Undercut",
+    whenWorks: "When the track is hard to pass on and fresh tyres are much faster.",
+    whenFails: "If the driver pits and comes back out behind a slower car (traffic).",
+    watchFor: "Watch the 'out lap' — the first lap on new tyres. It must be perfectly fast."
+  },
+  {
+    id: "onestop",
+    name: "Conservative One-Stop",
+    whenWorks: "When the driver is great at saving tyres and the track is smooth.",
+    whenFails: "If the tyres suddenly 'fall off a cliff' and lose all grip at the end.",
+    watchFor: "Compare their lap times on lap 40 vs lap 50. If they drop, the strategy failed."
+  },
+  {
+    id: "safetycar",
+    name: "Safety Car Gamble",
+    whenWorks: "When a driver stays out on very old tyres, praying for a crash.",
+    whenFails: "If no crash happens and they have to do a slow, normal pit stop.",
+    watchFor: "Watch the back of the pack. If anyone crashes, the gambler just won the lottery."
+  }
+];
 
 function selectBestCompletedSession(sessions: OpenF1Session[]): OpenF1Session | null {
   const now = Date.now();
@@ -19,6 +51,7 @@ function selectBestCompletedSession(sessions: OpenF1Session[]): OpenF1Session | 
 }
 
 export default function StrategyLab() {
+  const { isNewFanMode } = useNewFanMode();
   const [meetings, setMeetings] = useState<OpenF1Meeting[]>([]);
   const [sessions, setSessions] = useState<OpenF1Session[]>([]);
   const [selectedMeetingKey, setSelectedMeetingKey] = useState<number | "">("");
@@ -141,6 +174,36 @@ export default function StrategyLab() {
         </p>
       </section>
 
+      {isNewFanMode && (
+        <section className="bg-carbon border border-white/10 p-6 rounded animate-in fade-in">
+          <div className="flex items-center gap-2 mb-6">
+            <span className="w-2 h-2 rounded-full bg-electric animate-pulse"></span>
+            <h2 className="text-xl font-bold uppercase text-white tracking-wider">Beginner Strategy Guide</h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {beginnerPresets.map((preset) => (
+              <div key={preset.id} className="p-4 bg-slate-900 border border-white/5 rounded hover:border-electric/30 transition-colors">
+                <h3 className="font-bold text-electric uppercase tracking-wider text-sm mb-2">{preset.name}</h3>
+                <div className="space-y-3 mt-4">
+                  <div>
+                    <span className="block text-[10px] font-bold uppercase tracking-widest text-emerald-500 border-l-2 border-emerald-500 pl-2 mb-1">When it works</span>
+                    <p className="text-xs text-slate-300">{preset.whenWorks}</p>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold uppercase tracking-widest text-racing border-l-2 border-racing pl-2 mb-1">When it fails</span>
+                    <p className="text-xs text-slate-300">{preset.whenFails}</p>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold uppercase tracking-widest text-gold border-l-2 border-gold pl-2 mb-1">What to watch</span>
+                    <p className="text-xs text-slate-300">{preset.watchFor}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="space-y-6">
         <SessionPicker 
           meetings={meetings}
@@ -194,6 +257,12 @@ export default function StrategyLab() {
                 {avg1 < avg2 ? driver1Data.full_name : driver2Data.full_name}
               </span> was faster by <span className="font-bold text-white">{Math.abs(avg1 - avg2).toFixed(3)}s</span> per lap.
             </p>
+            {isNewFanMode && (
+              <div className="mt-4 inline-block text-left bg-electric/10 border border-electric/20 p-3 rounded text-sm text-slate-300">
+                <strong className="text-electric block mb-1 uppercase tracking-wider text-[10px]">What this means</strong>
+                In F1, a difference of 0.2 seconds per lap is significant. Over a 50-lap race, a driver who is 0.2s faster per lap will finish 10 seconds ahead of their rival.
+              </div>
+            )}
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">

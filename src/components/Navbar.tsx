@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { NewFanToggle } from "./common/NewFanToggle";
 
 const links = [
   { to: "/", label: "Dashboard" },
@@ -42,6 +43,7 @@ export default function Navbar() {
               {link.label}
             </NavLink>
           ))}
+          <NewFanToggle />
         </div>
       </nav>
     </header>

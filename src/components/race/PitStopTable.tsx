@@ -1,5 +1,7 @@
 import type { OpenF1PitStop, OpenF1Driver, OpenF1RaceControl } from "../../lib/api/apiTypes";
 import type { PitStopAnalysis, StrategyEvent } from "../../lib/raceIntelligence/types";
+import { useNewFanMode } from "../../contexts/NewFanContext";
+import { ExplainTerm } from "../common/ExplainTerm";
 
 interface PitStopTableProps {
   pitStops: OpenF1PitStop[];
@@ -10,6 +12,8 @@ interface PitStopTableProps {
 }
 
 export function PitStopTable({ pitStops, pitAnalysis, driverLookup, raceControl, strategyEvents }: PitStopTableProps) {
+  const { isNewFanMode } = useNewFanMode();
+
   const getEventProximity = (lap: number | undefined) => {
     if (!lap) return "Normal";
     const nearbyRc = raceControl.find(rc => 
@@ -37,6 +41,13 @@ export function PitStopTable({ pitStops, pitAnalysis, driverLookup, raceControl,
   return (
     <div className="bg-carbon border border-white/10 p-6">
       <h2 className="mb-4 text-xl font-bold uppercase text-white">Pit Stop Analyzer</h2>
+
+      {isNewFanMode && (
+        <div className="mb-6 bg-electric/10 border border-electric/20 p-4 rounded text-sm text-slate-300">
+          <strong className="text-electric block mb-1 uppercase tracking-wider text-[10px]">What am I looking at?</strong>
+          Pit stops matter because fresh tyres can be much faster, but stopping costs time in the pit lane. This table analyzes who stopped when.
+        </div>
+      )}
       
       {pitAnalysis && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6 bg-white/5 p-4 border border-white/10">

@@ -1,5 +1,6 @@
 import type { OpenF1Stint, OpenF1Driver } from "../../lib/api/apiTypes";
 import type { StintAnalysis } from "../../lib/raceIntelligence/types";
+import { useNewFanMode } from "../../contexts/NewFanContext";
 
 interface StintTimelineProps {
   stints: OpenF1Stint[];
@@ -9,6 +10,8 @@ interface StintTimelineProps {
 }
 
 export function StintTimeline({ stints, stintAnalysis, driverLookup, totalLaps }: StintTimelineProps) {
+  const { isNewFanMode } = useNewFanMode();
+
   if (stints.length === 0) {
     return (
       <div className="bg-carbon border border-white/10 p-6">
@@ -49,6 +52,13 @@ export function StintTimeline({ stints, stintAnalysis, driverLookup, totalLaps }
           </span>
         )}
       </div>
+
+      {isNewFanMode && (
+        <div className="mb-6 bg-electric/10 border border-electric/20 p-4 rounded text-sm text-slate-300">
+          <strong className="text-electric block mb-1 uppercase tracking-wider text-[10px]">What am I looking at?</strong>
+          A "stint" is the set of laps a driver completes on one set of tyres. This chart shows how long each driver kept their tyres alive and which rubber they chose.
+        </div>
+      )}
       <div className="min-w-[600px] space-y-4">
         {Object.entries(driverStints).map(([driverNumStr, dStints]) => {
           const driverNumber = Number(driverNumStr);

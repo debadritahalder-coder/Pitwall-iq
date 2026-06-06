@@ -1,5 +1,6 @@
 import type { StrategyEvent } from "../../lib/raceIntelligence/types";
 import type { OpenF1Driver } from "../../lib/api/apiTypes";
+import { useNewFanMode } from "../../contexts/NewFanContext";
 
 interface StrategyEventCardProps {
   events: StrategyEvent[];
@@ -8,6 +9,8 @@ interface StrategyEventCardProps {
 }
 
 export function StrategyEventCard({ events, driverLookup, replaceDriverLabels }: StrategyEventCardProps) {
+  const { isNewFanMode } = useNewFanMode();
+
   if (events.length === 0) {
     return (
       <div className="bg-carbon border border-white/10 p-6">
@@ -29,6 +32,14 @@ export function StrategyEventCard({ events, driverLookup, replaceDriverLabels }:
   return (
     <div className="bg-carbon border border-white/10 p-6">
       <h2 className="mb-4 text-xl font-bold uppercase text-white">Strategy Events Detected</h2>
+      
+      {isNewFanMode && (
+        <div className="mb-6 bg-electric/10 border border-electric/20 p-4 rounded text-sm text-slate-300">
+          <strong className="text-electric block mb-1 uppercase tracking-wider text-[10px]">What am I looking at?</strong>
+          These are signals, not guaranteed conclusions. PitWall IQ uses lap times, pit timing, and race control data to identify possible strategic moves like undercuts or overcuts.
+        </div>
+      )}
+
       <div className="space-y-4">
         {events.map((evt, idx) => {
           const driver = driverLookup[evt.driver_number];
