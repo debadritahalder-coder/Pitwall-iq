@@ -1,5 +1,6 @@
 import type { OpenF1PitStop, OpenF1RaceControl, OpenF1Lap, OpenF1Position } from "../api/apiTypes";
 import type { StrategyEvent } from "./types";
+import { analyzePitStops } from "./pitStopAnalyzer";
 
 export function detectStrategyEvents(
   pitStops: OpenF1PitStop[],
@@ -17,11 +18,14 @@ export function detectStrategyEvents(
   
   if (!laps || laps.length === 0) {
     events.push({
-      type: "traffic_risk", // just a fallback type
+      type: "traffic_risk",
       driver_number: 0,
       lap: 0,
       description: "Insufficient lap data for detailed strategy analysis.",
-      confidence: "low"
+      confidence: "low",
+      evidence: {
+        limitation: "Missing lap data."
+      }
     });
     return events;
   }
@@ -36,6 +40,8 @@ export function detectStrategyEvents(
     if (!driverLaps[lap.driver_number]) driverLaps[lap.driver_number] = [];
     driverLaps[lap.driver_number].push(lap);
   });
+
+  const pitAnalysis = analyzePitStops(validPitStops);
 
   // Find SC/VSC periods
   const scEvents = raceControl.filter((rc) => 
@@ -77,8 +83,13 @@ export function detectStrategyEvents(
           type: "safety_car_pit",
           driver_number: stop.driver_number,
           lap: stop.lap_number,
-          description: `Driver ${stop.driver_number} likely reduced effective pit-loss by pitting under SC/VSC conditions around lap ${stop.lap_number}.`,
-          confidence: "high"
+          description: `Driver ${stop.driver_number} likely reduced effective pit-loss by pitting under possible SC/VSC conditions around lap ${stop.lap_number}.`,
+          confidence: "high",
+          evidence: {
+            nearbyRaceControl: true,
+            medianPitLap: pitAnalysis.medianStopLap ?? undefined,
+            averagePitLap: pitAnalysis.averageStopLap ?? undefined
+          }
         });
       }
     });
@@ -97,15 +108,19 @@ export function detectStrategyEvents(
           type: "traffic_risk",
           driver_number: stop.driver_number,
           lap: stop.lap_number,
-          description: `Driver ${stop.driver_number} showed significantly slower pace immediately after their lap ${stop.lap_number} stop, suggesting possible traffic on exit.`,
-          confidence: "medium"
+          description: `Driver ${stop.driver_number} showed slower pace immediately after their lap ${stop.lap_number} stop, suggesting possible traffic on exit.`,
+          confidence: "medium",
+          evidence: {
+            preStopAverage: avgBefore,
+            postStopAverage: nextLap.lap_duration,
+            limitation: "Based solely on lap times, track position data is unverified."
+          }
         });
       }
     }
   });
 
-  // 3. Possible Undercut Attempts (Strict Check)
-  // Check if Driver A pit, and Driver B pit 1-2 laps later
+  // 3. Possible Undercut Attempts
   validPitStops.forEach(stopA => {
     const laterStops = validPitStops.filter(stopB => 
       stopB.driver_number !== stopA.driver_number &&
@@ -123,20 +138,21 @@ export function detectStrategyEvents(
         let gainedPosition = false;
         const driversB = laterStops.map(s => `Driver ${s.driver_number}`).join(", ");
         
-        // If positions are available, verify if A gained on any of B
+        let posABeforeEvent: number | undefined;
+        let posAAfterEvent: number | undefined;
+
         if (positions && positions.length > 0) {
-          // Find A's pos before stop
           const posABefore = positions.find(p => p.driver_number === stopA.driver_number && new Date(p.date).getTime() < new Date(dLapsA.find(l => l.lap_number === stopA.lap_number)?.date_start || "").getTime())?.position;
+          posABeforeEvent = posABefore;
           
           laterStops.forEach(stopB => {
             const dLapsB = driverLaps[stopB.driver_number] || [];
-            // Find B's pos before stop
             const posBBefore = positions.find(p => p.driver_number === stopB.driver_number && new Date(p.date).getTime() < new Date(dLapsB.find(l => l.lap_number === stopB.lap_number)?.date_start || "").getTime())?.position;
-            // Find both pos after B's stop
             const posAAfter = positions.find(p => p.driver_number === stopA.driver_number && new Date(p.date).getTime() > new Date(dLapsB.find(l => l.lap_number === stopB.lap_number)?.date_start || "").getTime())?.position;
             const posBAfter = positions.find(p => p.driver_number === stopB.driver_number && new Date(p.date).getTime() > new Date(dLapsB.find(l => l.lap_number === stopB.lap_number)?.date_start || "").getTime())?.position;
             
-            // If B was ahead of A before A's stop, and A is ahead of B after B's stop
+            if (posAAfter) posAAfterEvent = posAAfter;
+
             if (posABefore && posBBefore && posAAfter && posBAfter) {
               if (posBBefore < posABefore && posAAfter < posBAfter) {
                 gainedPosition = true;
@@ -149,27 +165,44 @@ export function detectStrategyEvents(
                type: "possible_undercut",
                driver_number: stopA.driver_number,
                lap: stopA.lap_number,
-               description: `Driver ${stopA.driver_number} successfully undercut ${driversB} by pitting early on lap ${stopA.lap_number} and gaining track position.`,
-               confidence: "high"
+               description: `Driver ${stopA.driver_number} may have attempted an undercut against ${driversB} by pitting early on lap ${stopA.lap_number}. Position data suggests the undercut may have worked.`,
+               confidence: "high",
+               evidence: {
+                 preStopAverage: avgBeforeA,
+                 postStopAverage: avgAfterA,
+                 positionBefore: posABeforeEvent,
+                 positionAfter: posAAfterEvent,
+                 medianPitLap: pitAnalysis.medianStopLap ?? undefined
+               }
              });
           } else {
-             // We have position data but no position was gained (or we couldn't confidently parse it due to timestamps)
              events.push({
                type: "possible_undercut",
                driver_number: stopA.driver_number,
                lap: stopA.lap_number,
-               description: `Driver ${stopA.driver_number} pitted early on lap ${stopA.lap_number} and improved pace, attempting an undercut against ${driversB}, but did not immediately gain position.`,
-               confidence: "medium"
+               description: `Driver ${stopA.driver_number} pitted early on lap ${stopA.lap_number} and improved pace, suggesting a possible undercut attempt against ${driversB}, but position data suggests it may not have been immediately effective.`,
+               confidence: "medium",
+               evidence: {
+                 preStopAverage: avgBeforeA,
+                 postStopAverage: avgAfterA,
+                 positionBefore: posABeforeEvent,
+                 positionAfter: posAAfterEvent,
+                 limitation: "Position data may not perfectly align with exact lap crossings."
+               }
              });
           }
         } else {
-          // No position data available, just detect pit timing
           events.push({
             type: "possible_undercut",
             driver_number: stopA.driver_number,
             lap: stopA.lap_number,
             description: `Driver ${stopA.driver_number} pitted early on lap ${stopA.lap_number} and improved pace, suggesting a possible undercut attempt against ${driversB} who pitted shortly after.`,
-            confidence: "medium"
+            confidence: "medium",
+            evidence: {
+              preStopAverage: avgBeforeA,
+              postStopAverage: avgAfterA,
+              limitation: "Lacking track position data to verify if position was gained."
+            }
           });
         }
       }
@@ -178,7 +211,6 @@ export function detectStrategyEvents(
 
   // 4. Possible Overcut Attempts
   validPitStops.forEach(stopA => {
-    // Check if Driver A extended stint while others pitted
     const earlierStops = validPitStops.filter(stopB => 
       stopB.driver_number !== stopA.driver_number &&
       stopB.lap_number < stopA.lap_number && 
@@ -190,20 +222,23 @@ export function detectStrategyEvents(
       const avgPaceWhileOthersPit = calculateBaselinePace(dLapsA, stopA.lap_number - 3, stopA.lap_number - 1, [stopA.lap_number]);
       const avgEarlierPace = calculateBaselinePace(dLapsA, stopA.lap_number - 7, stopA.lap_number - 4, [stopA.lap_number]);
 
-      // If Driver A maintained pace while others pitted
       if (avgPaceWhileOthersPit && avgEarlierPace && avgPaceWhileOthersPit <= avgEarlierPace + 0.5) {
         events.push({
           type: "possible_overcut",
           driver_number: stopA.driver_number,
           lap: stopA.lap_number,
           description: `Driver ${stopA.driver_number} extended their stint to lap ${stopA.lap_number} while maintaining steady pace, suggesting a possible overcut strategy based on available data.`,
-          confidence: "medium"
+          confidence: "medium",
+          evidence: {
+            preStopAverage: avgEarlierPace,
+            postStopAverage: avgPaceWhileOthersPit,
+            limitation: "Overcut relies on multiple external factors not fully verified here."
+          }
         });
       }
     }
   });
 
-  // Remove duplicates simply
   const uniqueEvents = events.filter((v, i, a) => a.findIndex(t => (t.type === v.type && t.driver_number === v.driver_number && t.lap === v.lap)) === i);
   
   return uniqueEvents;

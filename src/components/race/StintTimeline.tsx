@@ -1,12 +1,14 @@
 import type { OpenF1Stint, OpenF1Driver } from "../../lib/api/apiTypes";
+import type { StintAnalysis } from "../../lib/raceIntelligence/types";
 
 interface StintTimelineProps {
   stints: OpenF1Stint[];
+  stintAnalysis?: StintAnalysis | null;
   driverLookup: Record<number, OpenF1Driver>;
   totalLaps?: number; // optionally normalize width based on max laps
 }
 
-export function StintTimeline({ stints, driverLookup, totalLaps }: StintTimelineProps) {
+export function StintTimeline({ stints, stintAnalysis, driverLookup, totalLaps }: StintTimelineProps) {
   if (stints.length === 0) {
     return (
       <div className="bg-carbon border border-white/10 p-6">
@@ -39,7 +41,14 @@ export function StintTimeline({ stints, driverLookup, totalLaps }: StintTimeline
 
   return (
     <div className="bg-carbon border border-white/10 p-6 overflow-x-auto">
-      <h2 className="mb-4 text-xl font-bold uppercase text-white">Tyre Stint Timeline</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold uppercase text-white">Tyre Stint Timeline</h2>
+        {stintAnalysis?.tyreMixSummary && (
+          <span className="text-sm text-slate-400 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+            {stintAnalysis.tyreMixSummary}
+          </span>
+        )}
+      </div>
       <div className="min-w-[600px] space-y-4">
         {Object.entries(driverStints).map(([driverNumStr, dStints]) => {
           const driverNumber = Number(driverNumStr);

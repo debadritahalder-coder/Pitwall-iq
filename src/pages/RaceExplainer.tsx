@@ -271,7 +271,7 @@ export default function RaceExplainer() {
 
           <div className="space-y-6">
             <PitStopTable pitStops={pitStops} pitAnalysis={pitAnalysis} driverLookup={driverLookup} raceControl={raceControl} strategyEvents={strategyEvents} />
-            <StintTimeline stints={stints} driverLookup={driverLookup} />
+            <StintTimeline stints={stints} stintAnalysis={stintAnalysis} driverLookup={driverLookup} />
           </div>
         </div>
       )}

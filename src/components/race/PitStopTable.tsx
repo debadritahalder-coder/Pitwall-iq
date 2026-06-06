@@ -39,18 +39,26 @@ export function PitStopTable({ pitStops, pitAnalysis, driverLookup, raceControl,
       <h2 className="mb-4 text-xl font-bold uppercase text-white">Pit Stop Analyzer</h2>
       
       {pitAnalysis && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 bg-white/5 p-4 border border-white/10">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6 bg-white/5 p-4 border border-white/10">
+          <div>
+            <span className="text-xs text-slate-400 uppercase block mb-1">Total Stops</span>
+            <span className="font-bold text-white">{pitAnalysis.totalStops}</span>
+          </div>
           <div>
             <span className="text-xs text-slate-400 uppercase block mb-1">Average Stop Lap</span>
             <span className="font-bold text-white">{pitAnalysis.averageStopLap ?? "N/A"}</span>
+          </div>
+          <div>
+            <span className="text-xs text-slate-400 uppercase block mb-1">Median Stop Lap</span>
+            <span className="font-bold text-white">{pitAnalysis.medianStopLap ?? "N/A"}</span>
           </div>
           <div>
             <span className="text-xs text-slate-400 uppercase block mb-1">Earliest Stop</span>
             <span className="font-bold text-white">{pitAnalysis.earliestStopLap ? `Lap ${pitAnalysis.earliestStopLap}` : "N/A"}</span>
           </div>
           <div>
-            <span className="text-xs text-slate-400 uppercase block mb-1">Latest Stop</span>
-            <span className="font-bold text-white">{pitAnalysis.latestStopLap ? `Lap ${pitAnalysis.latestStopLap}` : "N/A"}</span>
+            <span className="text-xs text-slate-400 uppercase block mb-1">Fastest Stop</span>
+            <span className="font-bold text-white">{pitAnalysis.fastestStopDuration ? `${pitAnalysis.fastestStopDuration.toFixed(2)}s` : "N/A"}</span>
           </div>
           <div>
             <span className="text-xs text-slate-400 uppercase block mb-1">Multi-Stop Drivers</span>
